@@ -1,0 +1,52 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-keys-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    hasSearchField: true
+    stateId: "591dd57a-d8b9-4a0f-857b-82c69519b599"
+    sorters:
+      - dir: asc
+        prop: name
+    store:
+      proxy:
+        service: Garage
+        get:
+          method: getKeyList
+          params:
+            instanceuuid: "{{ _routeParams.instanceuuid }}"
+    columns:
+      - name: _("Name")
+        prop: name
+        flexGrow: 1
+        sortable: true
+      - name: _("Key ID")
+        prop: keyid
+        flexGrow: 1
+        sortable: true
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/services/garage/keys/create/{{ _routeParams.instanceuuid }}"
+      - template: edit
+        execute:
+          type: url
+          url: "/services/garage/keys/edit/{{ _routeParams.instanceuuid }}/{{ _selected[0].uuid }}"
+      - template: delete
+        confirmationDialogConfig:
+          template: confirmation-danger
+          message: _("Are you sure you want to delete this access key? Clients using it will lose access.")
+        execute:
+          type: request
+          request:
+            service: Garage
+            method: deleteKey
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+      - template: back
+        execute:
+          type: url
+          url: "/services/garage/instances"

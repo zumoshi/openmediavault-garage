@@ -1,0 +1,61 @@
+{{ pillar['headers']['multiline'] -}}
+# Managed by openmediavault-garage. Do not edit.
+
+metadata_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.metadatashareuuid) }}"
+db_engine = "{{ instance.dbengine }}"
+{% if instance.snapshotsshareuuid | length == 36 %}
+metadata_snapshots_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.snapshotsshareuuid) }}"
+{% endif %}
+{% if instance.snapshotinterval | length > 0 %}
+metadata_auto_snapshot_interval = "{{ instance.snapshotinterval }}"
+{% endif %}
+metadata_fsync = {{ instance.metadatafsync | to_bool }}
+data_fsync = {{ instance.datafsync | to_bool }}
+disable_scrub = {{ instance.disablescrub | to_bool }}
+
+replication_factor = 1
+
+rpc_bind_addr = "127.0.0.1:{{ instance.rpcport }}"
+rpc_secret_file = "/etc/garage/{{ instance.name }}.rpc_secret"
+
+compression_level = {% if instance.compressiondisable %}"none"{% else %}{{ instance.compressionlevel }}{% endif %}
+{% if instance.blocksize | length > 0 %}
+block_size = "{{ instance.blocksize }}"
+{% endif %}
+{% if instance.blockrambuffermax | length > 0 %}
+block_ram_buffer_max = "{{ instance.blockrambuffermax }}"
+{% endif %}
+{% if instance.blockmaxconcurrentreads %}
+block_max_concurrent_reads = {{ instance.blockmaxconcurrentreads }}
+{% endif %}
+{% if instance.blockmaxconcurrentwrites %}
+block_max_concurrent_writes_per_request = {{ instance.blockmaxconcurrentwrites }}
+{% endif %}
+{% if instance.lmdbmapsize | length > 0 %}
+lmdb_map_size = "{{ instance.lmdbmapsize }}"
+{% endif %}
+
+data_dir = [
+{%- for ds in dslist %}
+  { path = "{{ salt['omv_conf.get_sharedfolder_path'](ds.shareuuid) }}", capacity = "{{ ds.capacity | int }}GiB" }{{ "," if not loop.last else "" }}
+{%- endfor %}
+]
+
+[s3_api]
+s3_region = "{{ instance.s3region }}"
+api_bind_addr = "[::]:{{ instance.s3port }}"
+{% if instance.s3rootdomain | length > 0 %}
+root_domain = "{{ instance.s3rootdomain }}"
+{% endif %}
+{% if instance.adminenable %}
+[admin]
+api_bind_addr = "127.0.0.1:{{ instance.adminport }}"
+admin_token = "{{ instance.admintoken }}"
+{% endif %}
+{% if instance.webenable %}
+[s3_web]
+bind_addr = "[::]:{{ instance.webport }}"
+{% if instance.webrootdomain | length > 0 %}
+root_domain = "{{ instance.webrootdomain }}"
+{% endif %}
+{% endif %}

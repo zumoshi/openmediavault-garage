@@ -1,0 +1,6 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/instances"
+  title: _("Instances")
+  component: omv-services-garage-instances-datatable-page

@@ -1,0 +1,61 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-access-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    hasSearchField: true
+    stateId: "0b249fe2-05dd-4c45-a3d0-5c1c5759c84b"
+    sorters:
+      - dir: asc
+        prop: keyname
+    store:
+      proxy:
+        service: Garage
+        get:
+          method: getMappingList
+          params:
+            instanceuuid: "{{ _routeParams.instanceuuid }}"
+    columns:
+      - name: _("Key")
+        prop: keyname
+        flexGrow: 1
+        sortable: true
+      - name: _("Bucket")
+        prop: bucketname
+        flexGrow: 1
+        sortable: true
+      - name: _("Read")
+        prop: allowread
+        type: checkbox
+        sortable: true
+      - name: _("Write")
+        prop: allowwrite
+        type: checkbox
+        sortable: true
+      - name: _("Owner")
+        prop: allowowner
+        type: checkbox
+        sortable: true
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/services/garage/access/create/{{ _routeParams.instanceuuid }}"
+      - template: edit
+        execute:
+          type: url
+          url: "/services/garage/access/edit/{{ _routeParams.instanceuuid }}/{{ _selected[0].uuid }}"
+      - template: delete
+        execute:
+          type: request
+          request:
+            service: Garage
+            method: deleteMapping
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+      - template: back
+        execute:
+          type: url
+          url: "/services/garage/instances"

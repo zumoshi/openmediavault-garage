@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/instances/edit/:uuid"
+  title: _("Edit instance")
+  editing: true
+  notificationTitle: _("Updated Garage instance.")
+  component: omv-services-garage-instance-form-page

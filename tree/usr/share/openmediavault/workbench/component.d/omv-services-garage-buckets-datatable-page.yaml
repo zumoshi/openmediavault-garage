@@ -1,0 +1,63 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-buckets-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    hasSearchField: true
+    stateId: "b0822f13-3791-4a0d-b05c-30c586300956"
+    sorters:
+      - dir: asc
+        prop: name
+    store:
+      proxy:
+        service: Garage
+        get:
+          method: getBucketList
+          params:
+            instanceuuid: "{{ _routeParams.instanceuuid }}"
+    columns:
+      - name: _("Name")
+        prop: name
+        flexGrow: 1
+        sortable: true
+      - name: _("State")
+        prop: state
+        sortable: true
+      - name: _("Website")
+        prop: website
+        type: checkbox
+        sortable: true
+      - name: _("Objects")
+        prop: objects
+        sortable: true
+      - name: _("Size")
+        prop: bytes
+        type: attribute
+        attribute: "humanReadable"
+        sortable: true
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/services/garage/buckets/create/{{ _routeParams.instanceuuid }}"
+      - template: edit
+        execute:
+          type: url
+          url: "/services/garage/buckets/edit/{{ _routeParams.instanceuuid }}/{{ _selected[0].uuid }}"
+      - template: delete
+        confirmationDialogConfig:
+          template: confirmation-danger
+          message: _("Are you sure you want to delete this bucket? All objects in it will be lost.")
+        execute:
+          type: request
+          request:
+            service: Garage
+            method: deleteBucket
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+      - template: back
+        execute:
+          type: url
+          url: "/services/garage/instances"

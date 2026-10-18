@@ -1,0 +1,5 @@
+{{ pillar['headers']['multiline'] -}}
+[Service]
+Environment=RUST_LOG=garage={{ instance.loglevel }}
+ReadWritePaths={{ paths | join(' ') }}
+RequiresMountsFor={{ paths | join(' ') }}

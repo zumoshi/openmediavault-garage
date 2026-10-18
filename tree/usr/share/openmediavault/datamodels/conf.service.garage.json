@@ -1,0 +1,15 @@
+{
+	"type": "config",
+	"id": "conf.service.garage",
+	"title": "Garage - S3-compatible object storage",
+	"queryinfo": {
+		"xpath": ".//services/garage",
+		"iterable": false
+	},
+	"properties": {
+		"enable": {
+			"type": "boolean",
+			"default": false
+		}
+	}
+}

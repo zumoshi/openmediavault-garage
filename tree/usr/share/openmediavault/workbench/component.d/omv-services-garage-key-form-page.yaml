@@ -1,0 +1,51 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-key-form-page
+  type: formPage
+  config:
+    request:
+      service: Garage
+      get:
+        method: getKey
+        params:
+          uuid: "{{ _routeParams.uuid }}"
+          instanceuuid: "{{ _routeParams.instanceuuid }}"
+      post:
+        method: setKey
+    fields:
+      - type: confObjUuid
+      - type: hidden
+        name: instanceuuid
+        value: "{{ _routeParams.instanceuuid }}"
+      - type: textInput
+        name: name
+        label: _("Name")
+        value: ""
+        validators:
+          required: true
+          maxLength: 128
+      - type: divider
+        title: _("Import existing key")
+      - type: passwordInput
+        name: keyid
+        label: _("Key ID")
+        hint: _("Optional. Leave empty together with the secret to create a new key.")
+        autocomplete: "off"
+        value: ""
+      - type: passwordInput
+        name: secret
+        label: _("Secret")
+        autocomplete: "off"
+        value: ""
+      - type: hint
+        text: _("The secret of a newly created key is shown exactly once after creation and stored so access mappings can be managed here. The instance must be running; apply configuration changes first.")
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/garage/keys/{{ _routeParams.instanceuuid }}"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/garage/keys/{{ _routeParams.instanceuuid }}"

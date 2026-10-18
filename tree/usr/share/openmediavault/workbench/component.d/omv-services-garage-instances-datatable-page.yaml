@@ -1,0 +1,107 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-instances-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    hasSearchField: true
+    stateId: "81dce125-baf8-4e22-a4d4-941d55e26b61"
+    sorters:
+      - dir: asc
+        prop: name
+    store:
+      proxy:
+        service: Garage
+        get:
+          method: getInstanceList
+    columns:
+      - name: _("Name")
+        prop: name
+        flexGrow: 1
+        sortable: true
+      - name: _("Enabled")
+        prop: enable
+        type: checkbox
+        sortable: true
+      - name: _("Running")
+        prop: running
+        type: checkbox
+        sortable: true
+      - name: _("Datastores")
+        prop: datastorecount
+        sortable: true
+      - name: _("S3 port")
+        prop: s3port
+        sortable: true
+      - name: _("Admin API")
+        prop: adminenable
+        type: checkbox
+        sortable: true
+      - name: _("Website")
+        prop: webenable
+        type: checkbox
+        sortable: true
+      - name: _("Web UI")
+        prop: webuirunning
+        type: checkbox
+        sortable: true
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/services/garage/instances/create"
+      - template: edit
+        execute:
+          type: url
+          url: "/services/garage/instances/edit/{{ _selected[0].uuid }}"
+      - template: delete
+        confirmationDialogConfig:
+          template: confirmation-danger
+          message: _("Are you sure you want to delete this Garage instance? All instance files and configuration will be removed.")
+        execute:
+          type: request
+          request:
+            service: Garage
+            method: deleteInstance
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+      - type: menu
+        icon: mdi:cog
+        tooltip: _("Configure")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+        actions:
+          - text: _("Datastores")
+            icon: mdi:harddisk
+            execute:
+              type: url
+              url: "/services/garage/datastores/{{ _selected[0].uuid }}"
+          - text: _("Buckets")
+            icon: mdi:bucket-outline
+            execute:
+              type: url
+              url: "/services/garage/buckets/{{ _selected[0].uuid }}"
+          - text: _("Access keys")
+            icon: mdi:key-chain
+            execute:
+              type: url
+              url: "/services/garage/keys/{{ _selected[0].uuid }}"
+          - text: _("Access mapping")
+            icon: mdi:key-arrow-right
+            execute:
+              type: url
+              url: "/services/garage/access/{{ _selected[0].uuid }}"
+      - type: menu
+        icon: mdi:open-in-new
+        tooltip: _("Open")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+        actions:
+          - text: _("Web UI")
+            icon: mdi:monitor-dashboard
+            execute:
+              type: url
+              url: "/garage-sso/?instance={{ _selected[0].name }}"

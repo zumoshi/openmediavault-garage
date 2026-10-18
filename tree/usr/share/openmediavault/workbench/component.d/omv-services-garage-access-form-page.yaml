@@ -1,0 +1,73 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-access-form-page
+  type: formPage
+  config:
+    request:
+      service: Garage
+      get:
+        method: getMapping
+        params:
+          uuid: "{{ _routeParams.uuid }}"
+          instanceuuid: "{{ _routeParams.instanceuuid }}"
+      post:
+        method: setMapping
+    fields:
+      - type: confObjUuid
+      - type: hidden
+        name: instanceuuid
+        value: "{{ _routeParams.instanceuuid }}"
+      - type: select
+        name: keyuuid
+        label: _("Access key")
+        textField: name
+        valueField: uuid
+        value: ""
+        validators:
+          required: true
+        store:
+          proxy:
+            service: Garage
+            get:
+              method: enumerateKeys
+              params:
+                instanceuuid: "{{ _routeParams.instanceuuid }}"
+      - type: select
+        name: bucketuuid
+        label: _("Bucket")
+        textField: name
+        valueField: uuid
+        value: ""
+        validators:
+          required: true
+        store:
+          proxy:
+            service: Garage
+            get:
+              method: enumerateBuckets
+              params:
+                instanceuuid: "{{ _routeParams.instanceuuid }}"
+      - type: checkbox
+        name: allowread
+        label: _("Read")
+        value: true
+      - type: checkbox
+        name: allowwrite
+        label: _("Write")
+        value: true
+      - type: checkbox
+        name: allowowner
+        label: _("Owner")
+        value: false
+      - type: hint
+        text: _("Grants the key access to the bucket. The instance must be running; apply configuration changes first.")
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/garage/access/{{ _routeParams.instanceuuid }}"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/garage/access/{{ _routeParams.instanceuuid }}"

@@ -1,0 +1,38 @@
+name: openmediavault-garage
+arch: all
+version: ${VERSION}
+section: net
+priority: optional
+maintainer: Garage OMV packaging <root@localhost>
+description: |
+  OpenMediaVault plugin for Garage, the S3-compatible self-hosted object
+  storage. Manages multiple native Garage instances (no containers): each
+  instance gets its own datastores (shared folders), buckets, access keys
+  and key-to-bucket mapping, with an optional vendored community web UI.
+homepage: https://garagehq.deuxfleurs.fr
+license: GPL-3
+vendor: openmediavault-garage
+
+deb:
+  fields:
+    XB-Plugin-Section: network
+    XB-Plugin-Architecture: amd64
+
+depends:
+  - openmediavault (>= 8.0)
+  - garage
+  - acl
+
+contents:
+  - src: tree/usr/lib/systemd/system/omv-garage-webui@.service
+    dst: /usr/lib/systemd/system/omv-garage-webui@.service
+  - src: tree/usr/share/openmediavault/
+    dst: /usr/share/openmediavault
+  - src: tree/srv/
+    dst: /srv
+  - src: tree/var/www/openmediavault/
+    dst: /var/www/openmediavault
+
+scripts:
+  postinstall: scripts/postinst
+  postremove: scripts/postrm

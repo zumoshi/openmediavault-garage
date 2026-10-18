@@ -1,0 +1,7 @@
+version: "1.0"
+type: navigation-item
+data:
+  path: "services.garage.instances"
+  text: _("Instances")
+  position: 10
+  url: "/services/garage/instances"

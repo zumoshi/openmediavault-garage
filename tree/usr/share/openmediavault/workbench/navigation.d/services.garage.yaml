@@ -1,0 +1,7 @@
+version: "1.0"
+type: navigation-item
+data:
+  path: "services.garage"
+  text: _("Garage")
+  icon: "mdi:bucket-outline"
+  url: "/services/garage"

@@ -1,0 +1,7 @@
+version: "1.0"
+type: navigation-item
+data:
+  path: "services.garage.settings"
+  text: _("Settings")
+  position: 90
+  url: "/services/garage/settings"

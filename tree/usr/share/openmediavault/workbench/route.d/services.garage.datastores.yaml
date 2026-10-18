@@ -1,0 +1,6 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/datastores/:instanceuuid"
+  title: _("Datastores")
+  component: omv-services-garage-datastores-datatable-page

@@ -1,0 +1,54 @@
+#!/usr/bin/env dash
+#
+# This file is part of the openmediavault-garage plugin.
+#
+# @license   https://www.gnu.org/licenses/gpl.html GPL Version 3
+
+set -e
+
+. /etc/default/openmediavault
+. /usr/share/openmediavault/scripts/helper-functions
+
+case "$1" in
+	configure)
+		####################################################################
+		# Activate trigger to rebuild workbench configuration files.
+		# nfpm does not support dpkg triggers files; activating the trigger
+		# from the postinst is the documented equivalent.
+		####################################################################
+		dpkg-trigger update-workbench
+
+		####################################################################
+		# Initialize and migrate configuration database.
+		####################################################################
+		echo "Updating configuration database ..."
+		omv-confdbadm create "conf.service.garage"
+		if [ -n "$2" ]; then
+			omv-confdbadm migrate "conf.service.garage" "${2}"
+		fi
+
+		####################################################################
+		# Mark the garage module dirty so the next 'omv-salt deploy run'
+		# applies the configuration.
+		####################################################################
+		echo "Mark modules as dirty ..."
+		omv_module_set_dirty garage
+
+		####################################################################
+		# The web SSO launcher must be readable by the web server.
+		####################################################################
+		if [ -d /run/systemd/system ]; then
+			systemctl daemon-reload >/dev/null 2>&1 || true
+		fi
+	;;
+
+	abort-upgrade|abort-remove|abort-deconfigure)
+	;;
+
+	*)
+		echo "postinst called with unknown argument '$1'" >&2
+		exit 1
+	;;
+esac
+
+exit 0

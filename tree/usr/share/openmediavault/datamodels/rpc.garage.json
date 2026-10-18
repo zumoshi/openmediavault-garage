@@ -1,0 +1,398 @@
+[
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setsettings",
+		"params": {
+			"type": "object",
+			"properties": {
+				"enable": {
+					"type": "boolean"
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.getlist",
+		"params": {
+			"type": "object",
+			"properties": {
+				"start": {
+					"type": "integer",
+					"required": true
+				},
+				"limit": {
+					"type": "integer",
+					"required": true
+				},
+				"sortfield": {
+					"type": "string",
+					"required": true
+				},
+				"sortdir": {
+					"type": "string",
+					"required": true
+				},
+				"searchstr": {
+					"type": "string"
+				},
+				"instanceuuid": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setinstance",
+		"params": {
+			"type": "object",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"required": true
+				},
+				"enable": {
+					"type": "boolean"
+				},
+				"name": {
+					"type": "string",
+					"pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+					"required": true
+				},
+				"s3port": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535,
+					"required": true
+				},
+				"rpcport": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535,
+					"required": true
+				},
+				"s3region": {
+					"type": "string",
+					"required": true
+				},
+				"s3rootdomain": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"webenable": {
+					"type": "boolean"
+				},
+				"webport": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535,
+					"required": true
+				},
+				"webrootdomain": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"adminenable": {
+					"type": "boolean"
+				},
+				"adminport": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535,
+					"required": true
+				},
+				"dbengine": {
+					"type": "string",
+					"enum": [
+						"lmdb",
+						"sqlite"
+					],
+					"required": true
+				},
+				"compressionlevel": {
+					"type": "integer",
+					"minimum": -99,
+					"maximum": 22,
+					"required": true
+				},
+				"compressiondisable": {
+					"type": "boolean"
+				},
+				"snapshotinterval": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"metadatashareuuid": {
+					"type": "string",
+					"required": true
+				},
+				"snapshotsshareuuid": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"metadatafsync": {
+					"type": "boolean"
+				},
+				"datafsync": {
+					"type": "boolean"
+				},
+				"disablescrub": {
+					"type": "boolean"
+				},
+				"loglevel": {
+					"type": "string",
+					"enum": [
+						"error",
+						"warn",
+						"info",
+						"debug",
+						"trace"
+					],
+					"required": true
+				},
+				"blocksize": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"blockrambuffermax": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"blockmaxconcurrentreads": {
+					"type": [
+						"integer",
+						"null"
+					],
+					"minimum": 1,
+					"maximum": 1024
+				},
+				"blockmaxconcurrentwrites": {
+					"type": [
+						"integer",
+						"null"
+					],
+					"minimum": 1,
+					"maximum": 1024
+				},
+				"lmdbmapsize": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"webuienable": {
+					"type": "boolean"
+				},
+				"webuiport": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 65535
+				},
+				"webuiuser": {
+					"type": "string"
+				},
+				"webuipassword": {
+					"type": [
+						"string",
+						"null"
+					]
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setdatastore",
+		"params": {
+			"type": "object",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"required": true
+				},
+				"instanceuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"shareuuid": {
+					"type": "string",
+					"required": true
+				},
+				"capacity": {
+					"type": "number",
+					"minimum": 0,
+					"required": true
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setbucket",
+		"params": {
+			"type": "object",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"required": true
+				},
+				"instanceuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"name": {
+					"type": "string",
+					"pattern": "^[a-z0-9][a-z0-9.-]*[a-z0-9]$",
+					"required": true
+				},
+				"maxsize": {
+					"type": "number",
+					"minimum": 0,
+					"required": true
+				},
+				"maxobjects": {
+					"type": "integer",
+					"minimum": 0,
+					"required": true
+				},
+				"website": {
+					"type": "boolean"
+				},
+				"indexdoc": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"errordoc": {
+					"type": [
+						"string",
+						"null"
+					]
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setkey",
+		"params": {
+			"type": "object",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"required": true
+				},
+				"instanceuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"name": {
+					"type": "string",
+					"required": true
+				},
+				"keyid": {
+					"type": [
+						"string",
+						"null"
+					]
+				},
+				"secret": {
+					"type": [
+						"string",
+						"null"
+					]
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.setmapping",
+		"params": {
+			"type": "object",
+			"properties": {
+				"uuid": {
+					"type": "string",
+					"required": true
+				},
+				"instanceuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"keyuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"bucketuuid": {
+					"type": "string",
+					"format": "uuidv4",
+					"required": true
+				},
+				"allowread": {
+					"type": "boolean"
+				},
+				"allowwrite": {
+					"type": "boolean"
+				},
+				"allowowner": {
+					"type": "boolean"
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.suggestports",
+		"params": {
+			"type": "object",
+			"properties": {}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.getwebuilogin",
+		"params": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string",
+					"required": true
+				}
+			}
+		}
+	},
+	{
+		"type": "rpc",
+		"id": "rpc.garage.enumerate",
+		"params": {
+			"type": "object",
+			"properties": {
+				"instanceuuid": {
+					"type": "string"
+				},
+				"addnone": {
+					"type": "boolean"
+				}
+			}
+		}
+	}
+]

@@ -1,0 +1,48 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-datastores-datatable-page
+  type: datatablePage
+  config:
+    autoReload: false
+    hasSearchField: false
+    stateId: "5f62dc42-bfaa-47cc-a639-7cc6739235a0"
+    sorters:
+      - dir: asc
+        prop: sharedfoldername
+    store:
+      proxy:
+        service: Garage
+        get:
+          method: getDatastoreList
+          params:
+            instanceuuid: "{{ _routeParams.instanceuuid }}"
+    columns:
+      - name: _("Shared folder")
+        prop: sharedfoldername
+        flexGrow: 1
+        sortable: true
+      - name: _("Capacity (GiB)")
+        prop: capacity
+        sortable: true
+    actions:
+      - template: create
+        execute:
+          type: url
+          url: "/services/garage/datastores/create/{{ _routeParams.instanceuuid }}"
+      - template: edit
+        execute:
+          type: url
+          url: "/services/garage/datastores/edit/{{ _routeParams.instanceuuid }}/{{ _selected[0].uuid }}"
+      - template: delete
+        execute:
+          type: request
+          request:
+            service: Garage
+            method: deleteDatastore
+            params:
+              uuid: "{{ _selected[0].uuid }}"
+      - template: back
+        execute:
+          type: url
+          url: "/services/garage/instances"

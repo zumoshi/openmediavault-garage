@@ -1,0 +1,87 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-bucket-form-page
+  type: formPage
+  config:
+    request:
+      service: Garage
+      get:
+        method: getBucket
+        params:
+          uuid: "{{ _routeParams.uuid }}"
+          instanceuuid: "{{ _routeParams.instanceuuid }}"
+      post:
+        method: setBucket
+    fields:
+      - type: confObjUuid
+      - type: hidden
+        name: instanceuuid
+        value: "{{ _routeParams.instanceuuid }}"
+      - type: textInput
+        name: name
+        label: _("Name")
+        hint: _("The bucket name is also its global S3 alias.")
+        value: ""
+        validators:
+          required: true
+          minLength: 3
+          maxLength: 63
+          pattern:
+            pattern: "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+            errorData: _("Lowercase letters, digits, dots and dashes.")
+      - type: divider
+        title: _("Quotas")
+      - type: numberInput
+        name: maxsize
+        label: _("Maximum size (GiB)")
+        hint: _("0 = unlimited.")
+        value: 0
+        validators:
+          required: true
+          min: 0
+      - type: numberInput
+        name: maxobjects
+        label: _("Maximum objects")
+        hint: _("0 = unlimited.")
+        value: 0
+        validators:
+          required: true
+          min: 0
+      - type: divider
+        title: _("Website")
+      - type: checkbox
+        name: website
+        label: _("Enable website hosting")
+        value: false
+      - type: textInput
+        name: indexdoc
+        label: _("Index document")
+        value: index.html
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: website
+      - type: textInput
+        name: errordoc
+        label: _("Error document")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: website
+      - type: hint
+        text: _("Bucket, key and access changes require the instance to be running. Apply configuration changes first, otherwise this will fail.")
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/garage/buckets/{{ _routeParams.instanceuuid }}"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/garage/buckets/{{ _routeParams.instanceuuid }}"

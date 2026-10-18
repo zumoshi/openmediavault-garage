@@ -1,0 +1,253 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-instance-form-page
+  type: formPage
+  config:
+    request:
+      service: Garage
+      get:
+        method: getInstance
+        params:
+          uuid: "{{ _routeParams.uuid }}"
+      post:
+        method: setInstance
+    fields:
+      - type: confObjUuid
+      - type: checkbox
+        name: enable
+        label: _("Enabled")
+        value: false
+      - type: textInput
+        name: name
+        label: _("Name")
+        hint: _("Lowercase letters, digits and dashes. Used in unit names and URLs, cannot be changed later.")
+        value: ""
+        validators:
+          required: true
+          pattern:
+            pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+            errorData: _("Lowercase letters, digits and dashes.")
+          maxLength: 32
+      - type: divider
+        title: _("Ports")
+      - type: numberInput
+        name: s3port
+        label: _("S3 API port")
+        hint: _("The S3 API is always enabled and listens on all interfaces.")
+        value: 3900
+        validators:
+          required: true
+          min: 1
+          max: 65535
+          patternType: port
+      - type: numberInput
+        name: rpcport
+        label: _("RPC port")
+        hint: _("The internal cluster RPC is always enabled and listens on the loopback interface only.")
+        value: 3901
+        validators:
+          required: true
+          min: 1
+          max: 65535
+          patternType: port
+      - type: checkbox
+        name: adminenable
+        label: _("Enable admin API")
+        value: true
+        hint: _("Required for the web UI. Listens on the loopback interface only.")
+      - type: numberInput
+        name: adminport
+        label: _("Admin API port")
+        value: 3903
+        validators:
+          required: true
+          min: 1
+          max: 65535
+          patternType: port
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: adminenable
+      - type: checkbox
+        name: webenable
+        label: _("Enable website hosting")
+        value: false
+        hint: _("Expose buckets as websites (S3 website hosting).")
+      - type: numberInput
+        name: webport
+        label: _("Website port")
+        value: 3902
+        validators:
+          required: true
+          min: 1
+          max: 65535
+          patternType: port
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: webenable
+      - type: textInput
+        name: webrootdomain
+        label: _("Website root domain")
+        hint: _("Optional. Buckets are served as <bucket>.<root domain>.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: webenable
+      - type: divider
+        title: _("Storage")
+      - type: sharedFolderSelect
+        name: metadatashareuuid
+        label: _("Metadata shared folder")
+        hint: _("Stores the metadata database. Put it on fast local storage.")
+        hasEmptyOption: true
+        value: ""
+        validators:
+          requiredIf:
+            operator: truthy
+            arg0:
+              prop: enable
+      - type: sharedFolderSelect
+        name: snapshotsshareuuid
+        label: _("Snapshots shared folder")
+        hint: _("Optional. Metadata snapshots can grow up to 4x the database size.")
+        hasEmptyOption: true
+        value: ""
+      - type: textInput
+        name: snapshotinterval
+        label: _("Automatic snapshot interval")
+        hint: _("Empty to disable, otherwise a systemd time span, e.g. 6h or 1d.")
+        value: ""
+      - type: select
+        name: dbengine
+        label: _("Database engine")
+        value: lmdb
+        store:
+          data:
+            - lmdb - _("LMDB (default)")
+            - sqlite - _("SQLite")
+      - type: checkbox
+        name: metadatafsync
+        label: _("Fsync metadata")
+        value: false
+        hint: _("Safer, but slower.")
+      - type: checkbox
+        name: datafsync
+        label: _("Fsync data")
+        value: false
+        hint: _("Safer, but slower.")
+      - type: checkbox
+        name: disablescrub
+        label: _("Disable data scrub")
+        value: false
+      - type: divider
+        title: _("Compression")
+      - type: numberInput
+        name: compressionlevel
+        label: _("Zstd compression level")
+        hint: _("0 = zstd default, negative = faster, up to 22 = best.")
+        value: 1
+        validators:
+          min: -99
+          max: 22
+        modifiers:
+          - type: disabled
+            constraint:
+              operator: truthy
+              arg0:
+                prop: compressiondisable
+      - type: checkbox
+        name: compressiondisable
+        label: _("Disable compression")
+        value: false
+      - type: divider
+        title: _("Web UI")
+      - type: checkbox
+        name: webuienable
+        label: _("Enable web UI")
+        value: false
+        hint: _("Requires the admin API. Served through the OpenMediaVault web interface at /garage-webui-<name>/, never exposed directly.")
+      - type: textInput
+        name: webuiuser
+        label: _("Web UI user name")
+        value: admin
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: webuienable
+      - type: hint
+        text: _("A web UI password is generated automatically. Use 'Open > Web UI' on the Instances page to sign in without entering it. Regenerate it with Garage.renewWebUiPassword if needed.")
+      - type: divider
+        title: _("S3")
+      - type: textInput
+        name: s3region
+        label: _("Region")
+        value: garage
+        validators:
+          required: true
+      - type: textInput
+        name: s3rootdomain
+        label: _("S3 root domain")
+        hint: _("Optional. Enables vhost-style access: <bucket>.<root domain>.")
+        value: ""
+      - type: divider
+        title: _("Advanced")
+      - type: select
+        name: loglevel
+        label: _("Log level")
+        value: info
+        store:
+          data:
+            - error - _("Error")
+            - warn - _("Warning")
+            - info - _("Info")
+            - debug - _("Debug")
+            - trace - _("Trace")
+      - type: textInput
+        name: blocksize
+        label: _("Block size")
+        hint: _("Optional capacity string, e.g. 1MiB. Only affects new uploads.")
+        value: ""
+      - type: textInput
+        name: blockrambuffermax
+        label: _("Block RAM buffer max")
+        hint: _("Optional capacity string, e.g. 256MiB.")
+        value: ""
+      - type: numberInput
+        name: blockmaxconcurrentreads
+        label: _("Max concurrent block reads")
+        value: 16
+        validators:
+          min: 1
+          max: 1024
+      - type: numberInput
+        name: blockmaxconcurrentwrites
+        label: _("Max concurrent block writes per request")
+        value: 3
+        validators:
+          min: 1
+          max: 1024
+      - type: textInput
+        name: lmdbmapsize
+        label: _("LMDB map size")
+        hint: _("Optional capacity string, e.g. 1TiB.")
+        value: ""
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/garage/instances"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/garage/instances"

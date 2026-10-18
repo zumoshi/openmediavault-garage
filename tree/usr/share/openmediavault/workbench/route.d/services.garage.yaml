@@ -1,0 +1,6 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage"
+  title: _("Garage")
+  component: omv-services-garage-navigation-page

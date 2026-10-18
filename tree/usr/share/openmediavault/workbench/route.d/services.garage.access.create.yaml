@@ -1,0 +1,7 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/access/create/:instanceuuid"
+  title: _("Create")
+  notificationTitle: _("Created {{ acces }}.")
+  component: omv-services-garage-access-form-page

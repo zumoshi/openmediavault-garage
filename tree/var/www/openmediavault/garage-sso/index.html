@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Garage web UI sign-in</title>
+<style>
+body { font-family: system-ui, sans-serif; background: #1a1a1e; color: #eee;
+	display: grid; place-items: center; height: 100vh; margin: 0; }
+p { max-width: 32em; }
+</style>
+</head>
+<body>
+<p id="msg">Signing in to the Garage web UI&hellip;</p>
+<script>
+(async () => {
+	const msg = document.getElementById("msg");
+	const fail = (text) => { msg.textContent = "Error: " + text; };
+	const name = new URLSearchParams(location.search).get("instance");
+	if (!name) { return fail("missing ?instance= parameter"); }
+	try {
+		const res = await fetch("/rpc.php", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({
+				service: "Garage",
+				method: "getWebUiLogin",
+				params: { name: name }
+			})
+		});
+		const data = await res.json();
+		if (!data.response) {
+			throw new Error(data.error?.message ?? "RPC request failed");
+		}
+		const login = data.response;
+		const r2 = await fetch(login.url + "api/auth/login", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({
+				username: login.username,
+				password: login.password
+			})
+		});
+		if (!r2.ok) { throw new Error("web UI sign-in failed (" + r2.status + ")"); }
+		location.replace(login.url);
+	} catch (e) {
+		fail(e.message);
+	}
+})();
+</script>
+</body>
+</html>

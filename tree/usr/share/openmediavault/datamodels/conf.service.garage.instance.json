@@ -1,0 +1,191 @@
+{
+	"type": "config",
+	"id": "conf.service.garage.instance",
+	"title": "Garage instance",
+	"queryinfo": {
+		"xpath": "/config/services/garage/instances/instance",
+		"iterable": true,
+		"idproperty": "uuid"
+	},
+	"properties": {
+		"uuid": {
+			"type": "string",
+			"format": "uuidv4"
+		},
+		"enable": {
+			"type": "boolean",
+			"default": false
+		},
+		"name": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 32,
+			"pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+		},
+		"s3port": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 65535,
+			"default": 3900
+		},
+		"rpcport": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 65535,
+			"default": 3901
+		},
+		"s3region": {
+			"type": "string",
+			"minLength": 1,
+			"maxLength": 64,
+			"default": "garage"
+		},
+		"s3rootdomain": {
+			"type": "string",
+			"maxLength": 255,
+			"default": ""
+		},
+		"webenable": {
+			"type": "boolean",
+			"default": false
+		},
+		"webport": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 65535,
+			"default": 3902
+		},
+		"webrootdomain": {
+			"type": "string",
+			"maxLength": 255,
+			"default": ""
+		},
+		"adminenable": {
+			"type": "boolean",
+			"default": true
+		},
+		"adminport": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 65535,
+			"default": 3903
+		},
+		"dbengine": {
+			"type": "string",
+			"enum": ["lmdb", "sqlite"],
+			"default": "lmdb"
+		},
+		"compressionlevel": {
+			"type": "integer",
+			"minimum": -99,
+			"maximum": 22,
+			"default": 1
+		},
+		"compressiondisable": {
+			"type": "boolean",
+			"default": false
+		},
+		"snapshotinterval": {
+			"type": "string",
+			"maxLength": 32,
+			"default": ""
+		},
+		"metadatashareuuid": {
+			"type": "string",
+			"oneOf": [{
+				"type": "string",
+				"format": "uuidv4"
+			},{
+				"type": "string",
+				"maxLength": 0
+			}]
+		},
+		"snapshotsshareuuid": {
+			"type": "string",
+			"oneOf": [{
+				"type": "string",
+				"format": "uuidv4"
+			},{
+				"type": "string",
+				"maxLength": 0
+			}]
+		},
+		"metadatafsync": {
+			"type": "boolean",
+			"default": false
+		},
+		"datafsync": {
+			"type": "boolean",
+			"default": false
+		},
+		"disablescrub": {
+			"type": "boolean",
+			"default": false
+		},
+		"loglevel": {
+			"type": "string",
+			"enum": ["error", "warn", "info", "debug", "trace"],
+			"default": "info"
+		},
+		"blocksize": {
+			"type": "string",
+			"maxLength": 32,
+			"default": ""
+		},
+		"blockrambuffermax": {
+			"type": "string",
+			"maxLength": 32,
+			"default": ""
+		},
+		"blockmaxconcurrentreads": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 1024
+		},
+		"blockmaxconcurrentwrites": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 1024
+		},
+		"lmdbmapsize": {
+			"type": "string",
+			"maxLength": 32,
+			"default": ""
+		},
+		"rpcsecret": {
+			"type": "string",
+			"maxLength": 64,
+			"default": ""
+		},
+		"admintoken": {
+			"type": "string",
+			"maxLength": 64,
+			"default": ""
+		},
+		"webuienable": {
+			"type": "boolean",
+			"default": false
+		},
+		"webuiport": {
+			"type": "integer",
+			"minimum": 1,
+			"maximum": 65535,
+			"default": 3910
+		},
+		"webuiuser": {
+			"type": "string",
+			"maxLength": 64,
+			"default": "admin"
+		},
+		"webuipassword": {
+			"type": "string",
+			"maxLength": 128,
+			"default": ""
+		},
+		"webuipasswordhash": {
+			"type": "string",
+			"maxLength": 128,
+			"default": ""
+		}
+	}
+}

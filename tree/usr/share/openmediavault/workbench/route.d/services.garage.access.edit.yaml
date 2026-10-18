@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/access/edit/:instanceuuid/:uuid"
+  title: _("Edit")
+  editing: true
+  notificationTitle: _("Updated {{ acces }}.")
+  component: omv-services-garage-access-form-page
