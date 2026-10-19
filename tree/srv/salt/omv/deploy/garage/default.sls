@@ -71,13 +71,14 @@ configure_garage_rpc_secret_{{ name }}:
   file.managed:
     - name: {{ etcdir }}/{{ name }}.rpc_secret
     - contents: {{ instance.rpcsecret | json }}
-    - user: root
+    - user: garage
     - group: garage
-    - mode: '0640'
+    - mode: '0600'
 
 configure_garage_drop_in_{{ name }}:
   file.managed:
     - name: /etc/systemd/system/garage@{{ name }}.service.d/override.conf
+    - makedirs: True
     - source:
       - salt://{{ tpldir }}/files/instance-override.conf.j2
     - template: jinja

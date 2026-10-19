@@ -72,7 +72,10 @@
 		},
 		"dbengine": {
 			"type": "string",
-			"enum": ["lmdb", "sqlite"],
+			"enum": [
+				"lmdb",
+				"sqlite"
+			],
 			"default": "lmdb"
 		},
 		"compressionlevel": {
@@ -92,23 +95,29 @@
 		},
 		"metadatashareuuid": {
 			"type": "string",
-			"oneOf": [{
-				"type": "string",
-				"format": "uuidv4"
-			},{
-				"type": "string",
-				"maxLength": 0
-			}]
+			"oneOf": [
+				{
+					"type": "string",
+					"format": "uuidv4"
+				},
+				{
+					"type": "string",
+					"maxLength": 0
+				}
+			]
 		},
 		"snapshotsshareuuid": {
 			"type": "string",
-			"oneOf": [{
-				"type": "string",
-				"format": "uuidv4"
-			},{
-				"type": "string",
-				"maxLength": 0
-			}]
+			"oneOf": [
+				{
+					"type": "string",
+					"format": "uuidv4"
+				},
+				{
+					"type": "string",
+					"maxLength": 0
+				}
+			]
 		},
 		"metadatafsync": {
 			"type": "boolean",
@@ -124,7 +133,13 @@
 		},
 		"loglevel": {
 			"type": "string",
-			"enum": ["error", "warn", "info", "debug", "trace"],
+			"enum": [
+				"error",
+				"warn",
+				"info",
+				"debug",
+				"trace"
+			],
 			"default": "info"
 		},
 		"blocksize": {
@@ -140,12 +155,14 @@
 		"blockmaxconcurrentreads": {
 			"type": "integer",
 			"minimum": 1,
-			"maximum": 1024
+			"maximum": 1024,
+			"default": 16
 		},
 		"blockmaxconcurrentwrites": {
 			"type": "integer",
 			"minimum": 1,
-			"maximum": 1024
+			"maximum": 1024,
+			"default": 3
 		},
 		"lmdbmapsize": {
 			"type": "string",

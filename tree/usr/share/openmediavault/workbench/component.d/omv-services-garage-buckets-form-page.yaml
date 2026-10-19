@@ -1,7 +1,7 @@
 version: "1.0"
 type: component
 data:
-  name: omv-services-garage-bucket-form-page
+  name: omv-services-garage-buckets-form-page
   type: formPage
   config:
     request:

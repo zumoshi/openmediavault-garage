@@ -198,7 +198,7 @@ data:
       - type: textInput
         name: s3rootdomain
         label: _("S3 root domain")
-        hint: _("Optional. Enables vhost-style access: <bucket>.<root domain>.")
+        hint: _("Optional. Enables vhost-style access, buckets served as <bucket>.<root domain>.")
         value: ""
       - type: divider
         title: _("Advanced")

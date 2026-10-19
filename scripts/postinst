@@ -35,11 +35,15 @@ case "$1" in
 		omv_module_set_dirty garage
 
 		####################################################################
-		# The web SSO launcher must be readable by the web server.
+		# Reload the engine so the new RPC service is registered. This is
+		# the equivalent of the 'activate restart-engined' dpkg trigger,
+		# which nfpm cannot declare. Activate the trigger for apt runs as
+		# well; dpkg processes it at the end of the transaction.
 		####################################################################
 		if [ -d /run/systemd/system ]; then
-			systemctl daemon-reload >/dev/null 2>&1 || true
+			systemctl -q restart openmediavault-engined || true
 		fi
+		dpkg-trigger restart-engined || true
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)

@@ -26,13 +26,18 @@ if (!is_readable($configPath)) {
 	exit(1);
 }
 
-function garageApi(string $configPath, string $endpoint, string $payload = "{}"): array
+function garageApi(string $configPath, string $endpoint, string $payload = ""): array
 {
+	// Endpoints without a request body must be called without a payload.
+	$args = "";
+	if ($payload !== "") {
+		$args = " " . escapeshellarg($payload);
+	}
 	$cmd = sprintf(
-		"/usr/bin/garage -c %s json-api %s %s 2>&1",
+		"/usr/bin/garage -c %s json-api %s%s 2>&1",
 		escapeshellarg($configPath),
 		escapeshellarg($endpoint),
-		escapeshellarg($payload)
+		$args
 	);
 	$output = [];
 	$rc = 0;

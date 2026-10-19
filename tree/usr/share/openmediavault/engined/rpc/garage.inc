@@ -319,6 +319,13 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				gettext("The web UI requires the admin API to be enabled."));
 		}
 
+		// Optional tuning fields fall back to the Garage defaults.
+		foreach (["blockmaxconcurrentreads" => 16,
+			"blockmaxconcurrentwrites" => 3] as $field => $fallback) {
+			if (is_null($params[$field])) {
+				$params[$field] = $fallback;
+			}
+		}
 		$object = new \OMV\Config\ConfigObject("conf.service.garage.instance");
 		$object->setAssoc($params);
 		if ($isNew) {
@@ -507,13 +514,16 @@ class OMVRpcServiceGarage extends ServiceAbstract
 						"garage@" . $instancev->get("name")))->isActive();
 					if ($liveInstanceRunning) {
 						try {
-							$result = $this->jsonApi($db, $params["instanceuuid"], "ListBuckets", "{}");
+							$result = $this->jsonApi($db, $params["instanceuuid"], "ListBuckets");
 							foreach ($result as $bucket) {
+								$info = $this->jsonApi($db, $params["instanceuuid"],
+									"GetBucketInfo",
+									json_encode(["id" => $bucket["id"]]));
 								foreach ($bucket["globalAliases"] ?? [] as $alias) {
 									$live[$alias] = [
 										"garageid" => $bucket["id"],
-										"bytes" => $bucket["bytes"] ?? 0,
-										"objects" => $bucket["objects"] ?? 0
+										"bytes" => $info["bytes"] ?? 0,
+										"objects" => $info["objects"] ?? 0
 									];
 								}
 							}
@@ -597,7 +607,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 					$this->jsonApi($db, $params["instanceuuid"], "RemoveBucketAlias",
 						json_encode([
 							"bucketId" => $existing->get("garageid"),
-							"alias" => $existing->get("name")
+							"globalAlias" => $existing->get("name")
 						]));
 				} catch (\Exception $e) {
 					// The old alias may already be gone.
@@ -635,7 +645,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	private function applyBucketSettings($db, $object)
 	{
 		$body = [
-			"id" => $object->get("garageid"),
 			"quotas" => [
 				"maxSize" => floatval($object->get("maxsize")) > 0
 					? intval(floatval($object->get("maxsize")) * 1024 * 1024 * 1024)
@@ -654,7 +663,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$body["websiteAccess"] = ["enabled" => false];
 		}
 		$this->jsonApi($db, $object->get("instanceuuid"), "UpdateBucket",
-			json_encode($body));
+			json_encode(["id" => $object->get("garageid"), "body" => $body]));
 	}
 
 	// ------------------------------------------------------------------
@@ -727,7 +736,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			// Only the name can be changed after creation.
 			$this->jsonApi($db, $params["instanceuuid"], "UpdateKey",
 				json_encode(["id" => $object->get("keyid") ?? "",
-					"name" => $params["name"]]));
+					"body" => ["name" => $params["name"]]]));
 		}
 		$db->set($object);
 		return $object->getAssoc();
@@ -853,33 +862,28 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	{
 		$key = $db->get("conf.service.garage.key", $object->get("keyuuid"));
 		$bucket = $db->get("conf.service.garage.bucket", $object->get("bucketuuid"));
-		$perms = [
-			"read" => !$denyAll && $object->get("allowread"),
-			"write" => !$denyAll && $object->get("allowwrite"),
-			"owner" => !$denyAll && $object->get("allowowner")
-		];
-		$endpoint = "AllowBucketKey";
-		if ($denyAll || (!$perms["read"] && !$perms["write"] && !$perms["owner"])) {
-			$endpoint = "DenyBucketKey";
-		}
-		$this->jsonApi($db, $object->get("instanceuuid"), $endpoint, json_encode([
-			"bucketId" => $bucket->get("garageid"),
-			"keyId" => $key->get("keyid"),
-			"permissions" => $perms
-		]));
-		if ($endpoint === "DenyBucketKey") {
-			// Deny each permission explicitly to converge.
-			foreach (["read", "write", "owner"] as $perm) {
-				if ($perms[$perm]) {
-					continue;
-				}
-				$this->jsonApi($db, $object->get("instanceuuid"), "DenyBucketKey",
-					json_encode([
-						"bucketId" => $bucket->get("garageid"),
-						"keyId" => $key->get("keyid"),
-						"permissions" => [$perm => true]
-					]));
+		$allow = [];
+		$deny = [];
+		$fields = ["read" => "allowread", "write" => "allowwrite",
+			"owner" => "allowowner"];
+		foreach ($fields as $perm => $field) {
+			if (!$denyAll && $object->get($field)) {
+				$allow[$perm] = true;
+			} else {
+				$deny[$perm] = true;
 			}
+		}
+		$base = [
+			"bucketId" => $bucket->get("garageid"),
+			"accessKeyId" => $key->get("keyid")
+		];
+		if (!empty($allow)) {
+			$this->jsonApi($db, $object->get("instanceuuid"), "AllowBucketKey",
+				json_encode($base + ["permissions" => $allow]));
+		}
+		if (!empty($deny)) {
+			$this->jsonApi($db, $object->get("instanceuuid"), "DenyBucketKey",
+				json_encode($base + ["permissions" => $deny]));
 		}
 	}
 
@@ -946,15 +950,22 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		return $instance;
 	}
 
-	private function jsonApi($db, $instanceUuid, $endpoint, $payload)
+	private function jsonApi($db, $instanceUuid, $endpoint, $payload = "")
 	{
 		$instance = $db->get("conf.service.garage.instance", $instanceUuid);
 		$configPath = self::GARAGE_ETC . "/" . $instance->get("name") . ".toml";
 		$output = [];
-		$cmd = new Process([
-			self::GARAGE_BIN, "-c", $configPath,
-			"json-api", $endpoint, $payload
-		]);
+		// OMV\System\Process does not shell-escape its arguments, so the
+		// full command line is built and quoted here. Endpoints without a
+		// request body must be called without a payload.
+		$cmdLine = sprintf("%s -c %s json-api %s",
+			escapeshellarg(self::GARAGE_BIN),
+			escapeshellarg($configPath),
+			escapeshellarg($endpoint));
+		if ($payload !== "") {
+			$cmdLine .= " " . escapeshellarg($payload);
+		}
+		$cmd = new Process($cmdLine);
 		try {
 			$cmd->execute($output);
 		} catch (\Exception $e) {
@@ -967,6 +978,19 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			return [];
 		}
 		return $result;
+	}
+
+	private function getSharedFolderPath($db, $shareUuid)
+	{
+		try {
+			$sharedFolder = $db->get("conf.system.sharedfolder", $shareUuid);
+			$mount = $db->get("conf.system.filesystem.mountpoint",
+				$sharedFolder->get("mntentref"));
+			return rtrim($mount->get("dir"), "/") . "/" .
+				ltrim($sharedFolder->get("reldirpath"), "/");
+		} catch (\Exception $e) {
+			return "";
+		}
 	}
 
 	private function getSharedFolderName($db, $shareUuid)
@@ -1059,10 +1083,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			if (in_array($shareUuid, $stillUsed) || empty($shareUuid)) {
 				continue;
 			}
-			$sharedFolder = $db->get("conf.system.sharedfolder", $shareUuid);
-			$mount = $db->get("conf.system.filesystem.mountpoint",
-				$sharedFolder->get("mntentref"));
-			$path = $mount->get("dir");
+			$path = $this->getSharedFolderPath($db, $shareUuid);
+			if (empty($path)) {
+				continue;
+			}
 			$cmd = new Process(["setfacl", "-x", "u:garage", $path]);
 			try {
 				$cmd->execute($output);

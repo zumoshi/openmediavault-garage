@@ -3,5 +3,6 @@ type: navigation-item
 data:
   path: "services.garage.instances"
   text: _("Instances")
+  icon: "mdi:server"
   position: 10
   url: "/services/garage/instances"

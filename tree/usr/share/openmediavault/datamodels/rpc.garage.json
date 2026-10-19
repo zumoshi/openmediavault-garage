@@ -22,22 +22,42 @@
 					"required": true
 				},
 				"limit": {
-					"type": "integer",
+					"type": [
+						"integer",
+						"null"
+					],
 					"required": true
 				},
 				"sortfield": {
-					"type": "string",
-					"required": true
+					"type": [
+						"string",
+						"null"
+					]
 				},
 				"sortdir": {
-					"type": "string",
-					"required": true
+					"type": [
+						"string",
+						"null"
+					],
+					"enum": [
+						"asc",
+						"ASC",
+						"desc",
+						"DESC"
+					]
 				},
-				"searchstr": {
-					"type": "string"
+				"search": {
+					"type": [
+						"string",
+						"integer",
+						"null"
+					]
 				},
 				"instanceuuid": {
-					"type": "string"
+					"type": [
+						"string",
+						"null"
+					]
 				}
 			}
 		}

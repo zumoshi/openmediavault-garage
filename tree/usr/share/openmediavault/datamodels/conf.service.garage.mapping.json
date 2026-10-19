@@ -14,18 +14,15 @@
 		},
 		"instanceuuid": {
 			"type": "string",
-			"format": "uuidv4",
-			"required": true
+			"format": "uuidv4"
 		},
 		"keyuuid": {
 			"type": "string",
-			"format": "uuidv4",
-			"required": true
+			"format": "uuidv4"
 		},
 		"bucketuuid": {
 			"type": "string",
-			"format": "uuidv4",
-			"required": true
+			"format": "uuidv4"
 		},
 		"allowread": {
 			"type": "boolean",

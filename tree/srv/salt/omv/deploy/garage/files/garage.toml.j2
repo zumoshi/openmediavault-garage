@@ -9,9 +9,9 @@ metadata_snapshots_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.sna
 {% if instance.snapshotinterval | length > 0 %}
 metadata_auto_snapshot_interval = "{{ instance.snapshotinterval }}"
 {% endif %}
-metadata_fsync = {{ instance.metadatafsync | to_bool }}
-data_fsync = {{ instance.datafsync | to_bool }}
-disable_scrub = {{ instance.disablescrub | to_bool }}
+metadata_fsync = {{ 'true' if instance.metadatafsync | to_bool else 'false' }}
+data_fsync = {{ 'true' if instance.datafsync | to_bool else 'false' }}
+disable_scrub = {{ 'true' if instance.disablescrub | to_bool else 'false' }}
 
 replication_factor = 1
 

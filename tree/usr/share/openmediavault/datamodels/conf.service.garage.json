@@ -10,6 +10,386 @@
 		"enable": {
 			"type": "boolean",
 			"default": false
+		},
+		"instances": {
+			"type": "object",
+			"properties": {
+				"instance": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"enable": {
+								"type": "boolean",
+								"default": false
+							},
+							"name": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 32,
+								"pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+							},
+							"s3port": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 65535,
+								"default": 3900
+							},
+							"rpcport": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 65535,
+								"default": 3901
+							},
+							"s3region": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 64,
+								"default": "garage"
+							},
+							"s3rootdomain": {
+								"type": "string",
+								"maxLength": 255,
+								"default": ""
+							},
+							"webenable": {
+								"type": "boolean",
+								"default": false
+							},
+							"webport": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 65535,
+								"default": 3902
+							},
+							"webrootdomain": {
+								"type": "string",
+								"maxLength": 255,
+								"default": ""
+							},
+							"adminenable": {
+								"type": "boolean",
+								"default": true
+							},
+							"adminport": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 65535,
+								"default": 3903
+							},
+							"dbengine": {
+								"type": "string",
+								"enum": [
+									"lmdb",
+									"sqlite"
+								],
+								"default": "lmdb"
+							},
+							"compressionlevel": {
+								"type": "integer",
+								"minimum": -99,
+								"maximum": 22,
+								"default": 1
+							},
+							"compressiondisable": {
+								"type": "boolean",
+								"default": false
+							},
+							"snapshotinterval": {
+								"type": "string",
+								"maxLength": 32,
+								"default": ""
+							},
+							"metadatashareuuid": {
+								"type": "string",
+								"oneOf": [
+									{
+										"type": "string",
+										"format": "uuidv4"
+									},
+									{
+										"type": "string",
+										"maxLength": 0
+									}
+								]
+							},
+							"snapshotsshareuuid": {
+								"type": "string",
+								"oneOf": [
+									{
+										"type": "string",
+										"format": "uuidv4"
+									},
+									{
+										"type": "string",
+										"maxLength": 0
+									}
+								]
+							},
+							"metadatafsync": {
+								"type": "boolean",
+								"default": false
+							},
+							"datafsync": {
+								"type": "boolean",
+								"default": false
+							},
+							"disablescrub": {
+								"type": "boolean",
+								"default": false
+							},
+							"loglevel": {
+								"type": "string",
+								"enum": [
+									"error",
+									"warn",
+									"info",
+									"debug",
+									"trace"
+								],
+								"default": "info"
+							},
+							"blocksize": {
+								"type": "string",
+								"maxLength": 32,
+								"default": ""
+							},
+							"blockrambuffermax": {
+								"type": "string",
+								"maxLength": 32,
+								"default": ""
+							},
+							"blockmaxconcurrentreads": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 1024,
+								"default": 16
+							},
+							"blockmaxconcurrentwrites": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 1024,
+								"default": 3
+							},
+							"lmdbmapsize": {
+								"type": "string",
+								"maxLength": 32,
+								"default": ""
+							},
+							"rpcsecret": {
+								"type": "string",
+								"maxLength": 64,
+								"default": ""
+							},
+							"admintoken": {
+								"type": "string",
+								"maxLength": 64,
+								"default": ""
+							},
+							"webuienable": {
+								"type": "boolean",
+								"default": false
+							},
+							"webuiport": {
+								"type": "integer",
+								"minimum": 1,
+								"maximum": 65535,
+								"default": 3910
+							},
+							"webuiuser": {
+								"type": "string",
+								"maxLength": 64,
+								"default": "admin"
+							},
+							"webuipassword": {
+								"type": "string",
+								"maxLength": 128,
+								"default": ""
+							},
+							"webuipasswordhash": {
+								"type": "string",
+								"maxLength": 128,
+								"default": ""
+							}
+						}
+					}
+				}
+			}
+		},
+		"datastores": {
+			"type": "object",
+			"properties": {
+				"datastore": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"instanceuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"shareuuid": {
+								"type": "string",
+								"oneOf": [
+									{
+										"type": "string",
+										"format": "uuidv4"
+									},
+									{
+										"type": "string",
+										"maxLength": 0
+									}
+								]
+							},
+							"capacity": {
+								"type": "number",
+								"minimum": 0
+							}
+						}
+					}
+				}
+			}
+		},
+		"buckets": {
+			"type": "object",
+			"properties": {
+				"bucket": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"instanceuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"name": {
+								"type": "string",
+								"minLength": 3,
+								"maxLength": 63,
+								"pattern": "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+							},
+							"garageid": {
+								"type": "string",
+								"maxLength": 64,
+								"default": ""
+							},
+							"maxsize": {
+								"type": "number",
+								"minimum": 0,
+								"default": 0
+							},
+							"maxobjects": {
+								"type": "integer",
+								"minimum": 0,
+								"default": 0
+							},
+							"website": {
+								"type": "boolean",
+								"default": false
+							},
+							"indexdoc": {
+								"type": "string",
+								"maxLength": 255,
+								"default": ""
+							},
+							"errordoc": {
+								"type": "string",
+								"maxLength": 255,
+								"default": ""
+							}
+						}
+					}
+				}
+			}
+		},
+		"keys": {
+			"type": "object",
+			"properties": {
+				"key": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"instanceuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"name": {
+								"type": "string",
+								"minLength": 1,
+								"maxLength": 128
+							},
+							"keyid": {
+								"type": "string",
+								"maxLength": 64,
+								"default": ""
+							},
+							"secret": {
+								"type": "string",
+								"maxLength": 64,
+								"default": ""
+							}
+						}
+					}
+				}
+			}
+		},
+		"mappings": {
+			"type": "object",
+			"properties": {
+				"mapping": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"uuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"instanceuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"keyuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"bucketuuid": {
+								"type": "string",
+								"format": "uuidv4"
+							},
+							"allowread": {
+								"type": "boolean",
+								"default": true
+							},
+							"allowwrite": {
+								"type": "boolean",
+								"default": true
+							},
+							"allowowner": {
+								"type": "boolean",
+								"default": false
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 }

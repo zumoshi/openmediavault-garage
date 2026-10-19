@@ -1,7 +1,7 @@
 version: "1.0"
 type: component
 data:
-  name: omv-services-garage-datastore-form-page
+  name: omv-services-garage-datastores-form-page
   type: formPage
   config:
     request:
