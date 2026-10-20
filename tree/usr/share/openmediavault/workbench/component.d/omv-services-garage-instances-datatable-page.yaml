@@ -7,6 +7,11 @@ data:
     autoReload: false
     hasSearchField: true
     stateId: "81dce125-baf8-4e22-a4d4-941d55e26b61"
+    hints:
+      - type: info
+        text: _("Select an instance to edit it, to open its details view (datastores, buckets, access keys, permissions) or to launch its web UI.")
+        dismissible: true
+        stateId: "3f5f4f52-9c4e-4e2b-9f0a-6b2d1c8a7e01"
     sorters:
       - dir: asc
         prop: name
@@ -20,32 +25,34 @@ data:
         prop: name
         flexGrow: 1
         sortable: true
-      - name: _("Enabled")
-        prop: enable
-        type: checkbox
+      - name: _("Status")
+        prop: status
         sortable: true
-      - name: _("Running")
-        prop: running
-        type: checkbox
-        sortable: true
+        cellTemplateName: chip
+        cellTemplateConfig:
+          map:
+            running:
+              value: _("Running")
+              class: "omv-background-color-pair-success"
+            stopped:
+              value: _("Stopped")
+              class: "omv-background-color-pair-gray"
+            disabled:
+              value: _("Disabled")
+              class: "omv-background-color-pair-warning"
       - name: _("Datastores")
         prop: datastorecount
         sortable: true
       - name: _("S3 port")
         prop: s3port
         sortable: true
-      - name: _("Admin API")
-        prop: adminenable
-        type: checkbox
-        sortable: true
-      - name: _("Website")
-        prop: webenable
-        type: checkbox
+      - name: _("RPC port")
+        prop: rpcport
         sortable: true
       - name: _("Web UI")
         prop: webuirunning
-        type: checkbox
         sortable: true
+        cellTemplateName: checkIcon
     actions:
       - template: create
         execute:
@@ -55,6 +62,15 @@ data:
         execute:
           type: url
           url: "/services/garage/instances/edit/{{ _selected[0].uuid }}"
+      - type: iconButton
+        icon: details
+        tooltip: _("Show details")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+        execute:
+          type: url
+          url: "/services/garage/details/{{ _selected[0].uuid }}"
       - template: delete
         confirmationDialogConfig:
           template: confirmation-danger
@@ -67,33 +83,6 @@ data:
             params:
               uuid: "{{ _selected[0].uuid }}"
       - type: menu
-        icon: mdi:cog
-        tooltip: _("Configure")
-        enabledConstraints:
-          minSelected: 1
-          maxSelected: 1
-        actions:
-          - text: _("Datastores")
-            icon: mdi:harddisk
-            execute:
-              type: url
-              url: "/services/garage/datastores/{{ _selected[0].uuid }}"
-          - text: _("Buckets")
-            icon: mdi:bucket-outline
-            execute:
-              type: url
-              url: "/services/garage/buckets/{{ _selected[0].uuid }}"
-          - text: _("Access keys")
-            icon: mdi:key-chain
-            execute:
-              type: url
-              url: "/services/garage/keys/{{ _selected[0].uuid }}"
-          - text: _("Access mapping")
-            icon: mdi:key-arrow-right
-            execute:
-              type: url
-              url: "/services/garage/access/{{ _selected[0].uuid }}"
-      - type: menu
         icon: mdi:open-in-new
         tooltip: _("Open")
         enabledConstraints:
@@ -104,4 +93,4 @@ data:
             icon: mdi:monitor-dashboard
             execute:
               type: url
-              url: "/garage-sso/?instance={{ _selected[0].name }}"
+              url: "/externalRedirect/%2Fgarage-sso%2F%3Finstance%3D{{ _selected[0].name }}"

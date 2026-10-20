@@ -1,6 +1,0 @@
-version: "1.0"
-type: route
-data:
-  url: "/services/garage/access/:instanceuuid"
-  title: _("Access")
-  component: omv-services-garage-access-datatable-page

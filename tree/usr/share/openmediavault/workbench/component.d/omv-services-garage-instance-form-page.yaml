@@ -30,6 +30,14 @@ data:
             errorData: _("Lowercase letters, digits and dashes.")
           maxLength: 32
       - type: divider
+        title: _("Storage")
+      - type: sharedFolderSelect
+        name: storageshareuuid
+        label: _("Storage shared folder")
+        hint: _("Holds the whole instance. Data goes to the subfolder data/ and metadata to the subfolder meta/. Extra data disks can be added in the details view under Datastores.")
+        validators:
+          required: true
+      - type: divider
         title: _("Ports")
       - type: numberInput
         name: s3port
@@ -103,72 +111,6 @@ data:
               arg0:
                 prop: webenable
       - type: divider
-        title: _("Storage")
-      - type: sharedFolderSelect
-        name: metadatashareuuid
-        label: _("Metadata shared folder")
-        hint: _("Stores the metadata database. Put it on fast local storage.")
-        hasEmptyOption: true
-        value: ""
-        validators:
-          requiredIf:
-            operator: truthy
-            arg0:
-              prop: enable
-      - type: sharedFolderSelect
-        name: snapshotsshareuuid
-        label: _("Snapshots shared folder")
-        hint: _("Optional. Metadata snapshots can grow up to 4x the database size.")
-        hasEmptyOption: true
-        value: ""
-      - type: textInput
-        name: snapshotinterval
-        label: _("Automatic snapshot interval")
-        hint: _("Empty to disable, otherwise a systemd time span, e.g. 6h or 1d.")
-        value: ""
-      - type: select
-        name: dbengine
-        label: _("Database engine")
-        value: lmdb
-        store:
-          data:
-            - lmdb - _("LMDB (default)")
-            - sqlite - _("SQLite")
-      - type: checkbox
-        name: metadatafsync
-        label: _("Fsync metadata")
-        value: false
-        hint: _("Safer, but slower.")
-      - type: checkbox
-        name: datafsync
-        label: _("Fsync data")
-        value: false
-        hint: _("Safer, but slower.")
-      - type: checkbox
-        name: disablescrub
-        label: _("Disable data scrub")
-        value: false
-      - type: divider
-        title: _("Compression")
-      - type: numberInput
-        name: compressionlevel
-        label: _("Zstd compression level")
-        hint: _("0 = zstd default, negative = faster, up to 22 = best.")
-        value: 1
-        validators:
-          min: -99
-          max: 22
-        modifiers:
-          - type: disabled
-            constraint:
-              operator: truthy
-              arg0:
-                prop: compressiondisable
-      - type: checkbox
-        name: compressiondisable
-        label: _("Disable compression")
-        value: false
-      - type: divider
         title: _("Web UI")
       - type: checkbox
         name: webuienable
@@ -202,17 +144,109 @@ data:
         value: ""
       - type: divider
         title: _("Advanced")
+      - type: checkbox
+        name: storagesplit
+        label: _("Separate metadata shared folder")
+        value: false
+        hint: _("Store the metadata database on its own shared folder, for example on faster local storage. Data must then be provided by at least one datastore in the details view.")
+      - type: sharedFolderSelect
+        name: metadatashareuuid
+        label: _("Metadata shared folder")
+        hint: _("Stores the metadata database in the subfolder meta/.")
+        hasEmptyOption: true
+        value: ""
+        validators:
+          requiredIf:
+            operator: truthy
+            arg0:
+              prop: storagesplit
+        modifiers:
+          - type: visible
+            constraint:
+              operator: truthy
+              arg0:
+                prop: storagesplit
+      - type: sharedFolderSelect
+        name: snapshotsshareuuid
+        label: _("Snapshots shared folder")
+        hint: _("Optional. Metadata snapshots can grow up to 4x the database size.")
+        hasEmptyOption: true
+        value: ""
+      - type: textInput
+        name: snapshotinterval
+        label: _("Automatic snapshot interval")
+        hint: _("Empty to disable, otherwise a systemd time span, e.g. 6h or 1d.")
+        value: ""
+      - type: select
+        name: dbengine
+        label: _("Database engine")
+        value: lmdb
+        store:
+          data:
+            - - lmdb
+              - "LMDB (default)"
+            - - sqlite
+              - "SQLite"
+      - type: textInput
+        name: lmdbmapsize
+        label: _("LMDB map size")
+        hint: _("Optional capacity string, e.g. 1TiB.")
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: eq
+              arg0:
+                prop: dbengine
+              arg1: lmdb
+      - type: checkbox
+        name: metadatafsync
+        label: _("Fsync metadata")
+        value: false
+        hint: _("Safer, but slower.")
+      - type: checkbox
+        name: datafsync
+        label: _("Fsync data")
+        value: false
+        hint: _("Safer, but slower.")
+      - type: checkbox
+        name: disablescrub
+        label: _("Disable data scrub")
+        value: false
+      - type: numberInput
+        name: compressionlevel
+        label: _("Zstd compression level")
+        hint: _("0 = zstd default, negative = faster, up to 22 = best.")
+        value: 1
+        validators:
+          min: -99
+          max: 22
+        modifiers:
+          - type: disabled
+            constraint:
+              operator: truthy
+              arg0:
+                prop: compressiondisable
+      - type: checkbox
+        name: compressiondisable
+        label: _("Disable compression")
+        value: false
       - type: select
         name: loglevel
         label: _("Log level")
         value: info
         store:
           data:
-            - error - _("Error")
-            - warn - _("Warning")
-            - info - _("Info")
-            - debug - _("Debug")
-            - trace - _("Trace")
+            - - error
+              - "Error"
+            - - warn
+              - "Warning"
+            - - info
+              - "Info"
+            - - debug
+              - "Debug"
+            - - trace
+              - "Trace"
       - type: textInput
         name: blocksize
         label: _("Block size")
@@ -237,11 +271,6 @@ data:
         validators:
           min: 1
           max: 1024
-      - type: textInput
-        name: lmdbmapsize
-        label: _("LMDB map size")
-        hint: _("Optional capacity string, e.g. 1TiB.")
-        value: ""
     buttons:
       - template: submit
         execute:

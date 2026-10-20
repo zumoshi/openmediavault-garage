@@ -80,8 +80,8 @@ data:
       - template: submit
         execute:
           type: url
-          url: "/services/garage/buckets/{{ _routeParams.instanceuuid }}"
+          url: "/services/garage/details/{{ _routeParams.instanceuuid }}"
       - template: cancel
         execute:
           type: url
-          url: "/services/garage/buckets/{{ _routeParams.instanceuuid }}"
+          url: "/services/garage/details/{{ _routeParams.instanceuuid }}"

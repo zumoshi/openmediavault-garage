@@ -18,11 +18,12 @@ set -e
 # <config>
 #   <services>
 #     <garage>
-#       <enable>0|1</enable>
 #       <instances>
 #         <instance>
 #           <uuid>...</uuid>
 #           <enable>0|1</enable>
+#           <storageshareuuid>...</storageshareuuid>
+#           <storagesplit>0|1</storagesplit>
 #           <name>...</name>
 #           <s3port>3900</s3port>
 #           <rpcport>3901</rpcport>
@@ -102,7 +103,6 @@ set -e
 ########################################################################
 if ! omv_config_exists "/config/services/garage"; then
 	omv_config_add_node "/config/services" "garage"
-	omv_config_add_key "/config/services/garage" "enable" "0"
 	omv_config_add_node "/config/services/garage" "instances"
 	omv_config_add_node "/config/services/garage" "datastores"
 	omv_config_add_node "/config/services/garage" "buckets"

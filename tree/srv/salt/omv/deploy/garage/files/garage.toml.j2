@@ -1,7 +1,16 @@
 {{ pillar['headers']['multiline'] -}}
 # Managed by openmediavault-garage. Do not edit.
 
-metadata_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.metadatashareuuid) }}"
+{% if split %}
+{%   if metapath == storpath %}
+{#- Legacy instance: metadata lives at the shared folder root. #}
+metadata_dir = "{{ metapath }}"
+{%   else %}
+metadata_dir = "{{ metabase }}/meta"
+{%   endif %}
+{% else %}
+metadata_dir = "{{ storbase }}/meta"
+{% endif %}
 db_engine = "{{ instance.dbengine }}"
 {% if instance.snapshotsshareuuid | length == 36 %}
 metadata_snapshots_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.snapshotsshareuuid) }}"
@@ -35,9 +44,20 @@ block_max_concurrent_writes_per_request = {{ instance.blockmaxconcurrentwrites }
 lmdb_map_size = "{{ instance.lmdbmapsize }}"
 {% endif %}
 
-data_dir = [
+{#- Data locations: the storage subfolder plus every extra datastore. #}
+{%- set datapaths = [] %}
+{%- if not split %}
+{%- set _ = datapaths.append({'path': storbase ~ '/data', 'capacity': storfreegib}) %}
+{%- endif %}
 {%- for ds in dslist %}
-  { path = "{{ salt['omv_conf.get_sharedfolder_path'](ds.shareuuid) }}", capacity = "{{ ds.capacity | int }}GiB" }{{ "," if not loop.last else "" }}
+{%- set _ = datapaths.append({'path': salt['omv_conf.get_sharedfolder_path'](ds.shareuuid), 'capacity': ds.capacity | int}) %}
+{%- endfor %}
+{%- if datapaths | length == 0 %}
+{%- set _ = datapaths.append({'path': storbase ~ '/data', 'capacity': storfreegib}) %}
+{%- endif %}
+data_dir = [
+{%- for ds in datapaths %}
+  { path = "{{ ds.path }}"{{ ', capacity = "' ~ ds.capacity ~ 'GiB"' if ds.capacity > 0 else '' }} }{{ "," if not loop.last else "" }}
 {%- endfor %}
 ]
 

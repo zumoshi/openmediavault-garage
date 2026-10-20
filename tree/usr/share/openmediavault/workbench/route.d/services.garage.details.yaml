@@ -1,0 +1,6 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/:uuid"
+  title: _("Garage instance details")
+  component: omv-services-garage-instance-details-tabs-page

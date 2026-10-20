@@ -12,7 +12,7 @@
  */
 
 if ($argc < 3) {
-	fwrite(STDERR, "usage: bootstrap-instance.php <name> <capacity-in-bytes>\n");
+	fwrite(STDERR, "usage: bootstrap-instance.php <name> <capacity-in-bytes> [data-dir ...]\n");
 	exit(2);
 }
 
@@ -20,6 +20,24 @@ $name = $argv[1];
 $capacity = intval($argv[2]);
 $zone = getenv("OMV_GARAGE_ZONE") ?: "omv";
 $configPath = "/etc/garage/" . $name . ".toml";
+
+// With no explicit datastore capacities, size the layout from the free
+// space of the data locations, quantized to GiB so repeated applies stay
+// stable while the free space drifts.
+if ($capacity <= 0) {
+	$free = 0;
+	for ($i = 3; $i < $argc; $i++) {
+		$bytes = @disk_free_space($argv[$i]);
+		if (is_float($bytes) && $bytes > 0) {
+			$free += $bytes;
+		}
+	}
+	$capacity = intval(intval($free * 0.9 / 1073741824) * 1073741824);
+	if ($capacity <= 0) {
+		fwrite(STDERR, "no usable capacity found in the data directories\n");
+		exit(1);
+	}
+}
 
 if (!is_readable($configPath)) {
 	fwrite(STDERR, "config not readable: $configPath\n");

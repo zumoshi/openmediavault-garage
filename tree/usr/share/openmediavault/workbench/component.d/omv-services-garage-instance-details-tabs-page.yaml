@@ -1,0 +1,220 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-garage-instance-details-tabs-page
+  type: tabsPage
+  config:
+    tabs:
+      - type: datatable
+        label: _("Datastores")
+        config:
+          autoReload: false
+          hasFooter: false
+          sorters:
+            - dir: asc
+              prop: sharedfoldername
+          store:
+            proxy:
+              service: Garage
+              get:
+                method: getDatastoreList
+                params:
+                  instanceuuid: "{{ _routeParams.uuid }}"
+          columns:
+            - name: _("Shared folder")
+              prop: sharedfoldername
+              flexGrow: 1
+              sortable: true
+            - name: _("Capacity (GiB)")
+              prop: capacity
+              sortable: true
+          actions:
+            - template: create
+              execute:
+                type: url
+                url: "/services/garage/datastores/create/{{ _routeParams.uuid }}"
+            - template: edit
+              enabledConstraints:
+                minSelected: 1
+                maxSelected: 1
+              execute:
+                type: url
+                url: "/services/garage/datastores/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+            - template: delete
+              confirmationDialogConfig:
+                template: confirmation-danger
+                message: _("Are you sure you want to remove this datastore from the instance? The data in the shared folder is kept.")
+              execute:
+                type: request
+                request:
+                  service: Garage
+                  method: deleteDatastore
+                  params:
+                    uuid: "{{ _selected[0].uuid }}"
+      - type: datatable
+        label: _("Buckets")
+        config:
+          autoReload: false
+          hasFooter: false
+          hasSearchField: true
+          sorters:
+            - dir: asc
+              prop: name
+          store:
+            proxy:
+              service: Garage
+              get:
+                method: getBucketList
+                params:
+                  instanceuuid: "{{ _routeParams.uuid }}"
+          columns:
+            - name: _("Name")
+              prop: name
+              flexGrow: 1
+              sortable: true
+            - name: _("State")
+              prop: state
+              sortable: true
+            - name: _("Website")
+              prop: website
+              sortable: true
+              cellTemplateName: checkIcon
+            - name: _("Objects")
+              prop: objects
+              sortable: true
+            - name: _("Size")
+              prop: bytes
+              sortable: true
+              cellTemplateName: template
+              cellTemplateConfig: '{{ bytes | tobytes | binaryunit | notavailable("-") }}'
+          actions:
+            - template: create
+              execute:
+                type: url
+                url: "/services/garage/buckets/create/{{ _routeParams.uuid }}"
+            - template: edit
+              enabledConstraints:
+                minSelected: 1
+                maxSelected: 1
+              execute:
+                type: url
+                url: "/services/garage/buckets/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+            - template: delete
+              confirmationDialogConfig:
+                template: confirmation-danger
+                message: _("Are you sure you want to delete this bucket? All objects in it will be lost.")
+              execute:
+                type: request
+                request:
+                  service: Garage
+                  method: deleteBucket
+                  params:
+                    uuid: "{{ _selected[0].uuid }}"
+      - type: datatable
+        label: _("Access keys")
+        config:
+          autoReload: false
+          hasFooter: false
+          hasSearchField: true
+          sorters:
+            - dir: asc
+              prop: name
+          store:
+            proxy:
+              service: Garage
+              get:
+                method: getKeyList
+                params:
+                  instanceuuid: "{{ _routeParams.uuid }}"
+          columns:
+            - name: _("Name")
+              prop: name
+              flexGrow: 1
+              sortable: true
+            - name: _("Key ID")
+              prop: keyid
+              flexGrow: 1
+              sortable: true
+          actions:
+            - template: create
+              execute:
+                type: url
+                url: "/services/garage/keys/create/{{ _routeParams.uuid }}"
+            - template: edit
+              enabledConstraints:
+                minSelected: 1
+                maxSelected: 1
+              execute:
+                type: url
+                url: "/services/garage/keys/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+            - template: delete
+              confirmationDialogConfig:
+                template: confirmation-danger
+                message: _("Are you sure you want to delete this access key? Clients using it will lose access.")
+              execute:
+                type: request
+                request:
+                  service: Garage
+                  method: deleteKey
+                  params:
+                    uuid: "{{ _selected[0].uuid }}"
+      - type: datatable
+        label: _("Permissions")
+        config:
+          autoReload: false
+          hasFooter: false
+          hasSearchField: true
+          sorters:
+            - dir: asc
+              prop: keyname
+          store:
+            proxy:
+              service: Garage
+              get:
+                method: getMappingList
+                params:
+                  instanceuuid: "{{ _routeParams.uuid }}"
+          columns:
+            - name: _("Access key")
+              prop: keyname
+              flexGrow: 1
+              sortable: true
+            - name: _("Bucket")
+              prop: bucketname
+              flexGrow: 1
+              sortable: true
+            - name: _("Read")
+              prop: allowread
+              sortable: true
+              cellTemplateName: checkIcon
+            - name: _("Write")
+              prop: allowwrite
+              sortable: true
+              cellTemplateName: checkIcon
+            - name: _("Owner")
+              prop: allowowner
+              sortable: true
+              cellTemplateName: checkIcon
+          actions:
+            - template: create
+              execute:
+                type: url
+                url: "/services/garage/access/create/{{ _routeParams.uuid }}"
+            - template: edit
+              enabledConstraints:
+                minSelected: 1
+                maxSelected: 1
+              execute:
+                type: url
+                url: "/services/garage/access/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+            - template: delete
+              confirmationDialogConfig:
+                template: confirmation-danger
+                message: _("Are you sure you want to remove this permission? The access key will no longer reach the bucket.")
+              execute:
+                type: request
+                request:
+                  service: Garage
+                  method: deleteMapping
+                  params:
+                    uuid: "{{ _selected[0].uuid }}"
