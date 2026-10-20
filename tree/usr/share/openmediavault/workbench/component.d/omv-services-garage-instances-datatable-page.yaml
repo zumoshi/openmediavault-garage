@@ -6,7 +6,7 @@ data:
   config:
     autoReload: false
     hasSearchField: true
-    stateId: "81dce125-baf8-4e22-a4d4-941d55e26b61"
+    stateId: "4e8a91c2-57d3-4f6e-9b0c-2a7d5e1f3b62"
     hints:
       - type: info
         text: _("Select an instance to edit it, to open its details view (datastores, buckets, access keys, permissions) or to launch its web UI.")

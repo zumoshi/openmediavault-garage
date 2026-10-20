@@ -17,7 +17,7 @@ data:
       - type: checkbox
         name: enable
         label: _("Enabled")
-        value: false
+        value: true
       - type: textInput
         name: name
         label: _("Name")
@@ -31,10 +31,22 @@ data:
           maxLength: 32
       - type: divider
         title: _("Storage")
-      - type: sharedFolderSelect
+      - type: select
         name: storageshareuuid
         label: _("Storage shared folder")
         hint: _("Holds the whole instance. Data goes to the subfolder data/ and metadata to the subfolder meta/. Extra data disks can be added in the details view under Datastores.")
+        placeholder: _("Select a shared folder ...")
+        value: ""
+        valueField: uuid
+        textField: name
+        store:
+          proxy:
+            service: ShareMgmt
+            get:
+              method: enumerateSharedFolders
+          sorters:
+            - dir: asc
+              prop: name
         validators:
           required: true
       - type: divider
@@ -149,12 +161,22 @@ data:
         label: _("Separate metadata shared folder")
         value: false
         hint: _("Store the metadata database on its own shared folder, for example on faster local storage. Data must then be provided by at least one datastore in the details view.")
-      - type: sharedFolderSelect
+      - type: select
         name: metadatashareuuid
         label: _("Metadata shared folder")
         hint: _("Stores the metadata database in the subfolder meta/.")
-        hasEmptyOption: true
+        placeholder: _("Select a shared folder ...")
         value: ""
+        valueField: uuid
+        textField: name
+        store:
+          proxy:
+            service: ShareMgmt
+            get:
+              method: enumerateSharedFolders
+          sorters:
+            - dir: asc
+              prop: name
         validators:
           requiredIf:
             operator: truthy
@@ -166,12 +188,22 @@ data:
               operator: truthy
               arg0:
                 prop: storagesplit
-      - type: sharedFolderSelect
+      - type: select
         name: snapshotsshareuuid
         label: _("Snapshots shared folder")
         hint: _("Optional. Metadata snapshots can grow up to 4x the database size.")
         hasEmptyOption: true
         value: ""
+        valueField: uuid
+        textField: name
+        store:
+          proxy:
+            service: ShareMgmt
+            get:
+              method: enumerateSharedFolders
+          sorters:
+            - dir: asc
+              prop: name
       - type: textInput
         name: snapshotinterval
         label: _("Automatic snapshot interval")

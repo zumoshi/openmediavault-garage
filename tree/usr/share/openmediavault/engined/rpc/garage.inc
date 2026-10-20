@@ -131,7 +131,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$ports = $this->computeSuggestedPorts();
 			$assoc = [
 				"uuid" => $newUuid,
-				"enable" => false,
+				"enable" => true,
 				"name" => "",
 				"s3port" => $ports["s3port"],
 				"rpcport" => $ports["rpcport"],
@@ -301,6 +301,15 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 			if (strlen($params["admintoken"] ?? "") !== 64) {
 				$params["admintoken"] = $this->generateSecret();
+			}
+			// Heal a web UI credential that was lost outside this RPC (both
+			// the password and its hash empty) without touching healthy ones.
+			$existing = $db->get("conf.service.garage.instance", $params["uuid"]);
+			if (strlen($existing->get("webuipassword") ?? "") === 0 &&
+				strlen($existing->get("webuipasswordhash") ?? "") === 0) {
+				$params["webuipassword"] = $this->generatePassword();
+				$params["webuipasswordhash"] =
+					password_hash($params["webuipassword"], PASSWORD_BCRYPT);
 			}
 		}
 
@@ -988,13 +997,27 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		if ($payload !== "") {
 			$cmdLine .= " " . escapeshellarg($payload);
 		}
+		// Capture stderr into the output array; PHP exec() would
+		// otherwise send it to the engine daemon's stderr.
+		$cmdLine .= " 2>&1";
 		$cmd = new Process($cmdLine);
-		try {
-			$cmd->execute($output);
-		} catch (\Exception $e) {
-			throw new \OMV\Exception(sprintf(
-				gettext("Garage admin operation '%s' failed: %s"),
-				$endpoint, implode(" ", $output)));
+		// Right after a deploy the admin API can fail the first calls
+		// before the daemon finished binding. An empty output means
+		// nothing happened, so retrying is safe.
+		for ($attempt = 0; ; $attempt++) {
+			$output = [];
+			$exitStatus = 0;
+			try {
+				$cmd->execute($output, $exitStatus);
+				break;
+			} catch (\Exception $e) {
+				if (count($output) > 0 || $attempt >= 2) {
+					throw new \OMV\Exception(sprintf(
+						gettext("Garage admin operation '%s' failed (rc %s): %s"),
+						$endpoint, $exitStatus, implode(" ", $output)));
+				}
+				sleep(1);
+			}
 		}
 		$result = json_decode(implode("\n", $output), true);
 		if (is_null($result)) {
