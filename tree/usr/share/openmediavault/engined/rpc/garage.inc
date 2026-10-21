@@ -543,6 +543,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.garage.getlist");
 		$db = \OMV\Config\Database::getInstance();
+		if (!empty($params["instanceuuid"])) {
+			$this->reconcileLive($db, $params["instanceuuid"]);
+		}
 		$objects = $db->get("conf.service.garage.bucket");
 		// Merge live state, if possible.
 		$live = [];
@@ -716,6 +719,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.garage.getlist");
 		$db = \OMV\Config\Database::getInstance();
+		if (!empty($params["instanceuuid"])) {
+			$this->reconcileLive($db, $params["instanceuuid"]);
+		}
 		$objects = $db->get("conf.service.garage.key");
 		$objectsAssoc = [];
 		foreach ($objects as $objectv) {
@@ -813,6 +819,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.garage.getlist");
 		$db = \OMV\Config\Database::getInstance();
+		if (!empty($params["instanceuuid"])) {
+			$this->reconcileLive($db, $params["instanceuuid"]);
+		}
 		$keys = [];
 		foreach ($db->get("conf.service.garage.key") as $keyv) {
 			$keys[$keyv->get("uuid")] = $keyv->get("name");
@@ -1100,6 +1109,218 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		} catch (\Exception $e) {
 		}
 	}
+
+	// ------------------------------------------------------------------
+	// Live state reconciliation
+	// ------------------------------------------------------------------
+
+	/**
+	 * Synchronize the confdb bucket/key/mapping tables with live Garage
+	 * state. The web UI (and S3 clients) can create and delete buckets
+	 * and keys behind OMV's back; reconciliation runs on every list
+	 * request so the workbench always mirrors the daemon. Garage is the
+	 * source of truth for what exists, confdb for OMV-side metadata.
+	 */
+	private function reconcileLive($db, $instanceUuid)
+	{
+		static $lastRun = [];
+		$now = microtime(true);
+		if (isset($lastRun[$instanceUuid]) &&
+			$now - $lastRun[$instanceUuid] < 5) {
+			return;
+		}
+		$lastRun[$instanceUuid] = $now;
+		$newUuid = \OMV\Environment::get("OMV_CONFIGOBJECT_NEW_UUID");
+		try {
+			$liveKeys = $this->jsonApi($db, $instanceUuid, "ListKeys");
+			$liveBuckets = $this->jsonApi($db, $instanceUuid, "ListBuckets");
+		} catch (\Exception $e) {
+			return; // instance down or starting; show confdb as-is
+		}
+
+		// ---- Buckets: drop dead rows, backfill legacy ids, import new.
+		$liveBucketById = [];
+		foreach ($liveBuckets as $b) {
+			$liveBucketById[$b["id"]] = $b["globalAliases"] ?? [];
+		}
+		$bucketIdToUuid = [];
+		$deadBuckets = [];
+		foreach ($db->get("conf.service.garage.bucket") as $b) {
+			if ($b->get("instanceuuid") !== $instanceUuid) {
+				continue;
+			}
+			$gid = $b->get("garageid");
+			if (strlen($gid) > 0 && isset($liveBucketById[$gid])) {
+				$bucketIdToUuid[$gid] = $b->get("uuid");
+				continue;
+			}
+			if (strlen($gid) === 0) {
+				// Legacy row without a stored garage id: match by name.
+				foreach ($liveBucketById as $id => $aliases) {
+					if (in_array($b->get("name"), $aliases, true)) {
+						$b->set("garageid", $id);
+						$db->set($b);
+						$bucketIdToUuid[$id] = $b->get("uuid");
+						continue 2;
+					}
+				}
+			}
+			$deadBuckets[] = $b;
+		}
+		foreach ($deadBuckets as $b) {
+			$db->delete($b);
+		}
+		foreach ($liveBuckets as $b) {
+			if (isset($bucketIdToUuid[$b["id"]])) {
+				continue;
+			}
+			$alias = ($b["globalAliases"] ?? [])[0] ??
+				("imported-" . substr($b["id"], 0, 8));
+			$object = new \OMV\Config\ConfigObject(
+				"conf.service.garage.bucket");
+			$object->setAssoc([
+				"uuid" => $newUuid,
+				"instanceuuid" => $instanceUuid,
+				"name" => $this->uniqueName($db, "conf.service.garage.bucket",
+					"instanceuuid", $instanceUuid, "name", $alias),
+				"garageid" => $b["id"],
+				"maxsize" => 0, "maxobjects" => 0, "website" => False,
+				"indexdoc" => "", "errordoc" => ""
+			]);
+			$db->set($object);
+			$bucketIdToUuid[$b["id"]] = $object->get("uuid");
+		}
+
+		// ---- Keys: same pattern, with secret recovery on import.
+		$liveKeyById = [];
+		foreach ($liveKeys as $k) {
+			$liveKeyById[$k["id"]] = $k;
+		}
+		$keyIdToUuid = [];
+		$deadKeys = [];
+		foreach ($db->get("conf.service.garage.key") as $k) {
+			if ($k->get("instanceuuid") !== $instanceUuid) {
+				continue;
+			}
+			$keyid = $k->get("keyid");
+			if (strlen($keyid) > 0 && isset($liveKeyById[$keyid])) {
+				$keyIdToUuid[$keyid] = $k->get("uuid");
+				continue;
+			}
+			$deadKeys[] = $k;
+		}
+		foreach ($deadKeys as $k) {
+			$db->delete($k);
+		}
+		foreach ($liveKeys as $k) {
+			if (isset($keyIdToUuid[$k["id"]])) {
+				continue;
+			}
+			$secret = "";
+			try {
+				$info = $this->jsonApi($db, $instanceUuid, "GetKeyInfo",
+					json_encode(["id" => $k["id"], "showSecretKey" => true]));
+				$secret = $info["secretAccessKey"] ?? "";
+			} catch (\Exception $e) {
+			}
+			$object = new \OMV\Config\ConfigObject(
+				"conf.service.garage.key");
+			$object->setAssoc([
+				"uuid" => $newUuid,
+				"instanceuuid" => $instanceUuid,
+				"name" => $this->uniqueName($db, "conf.service.garage.key",
+					"instanceuuid", $instanceUuid, "name",
+					$k["name"] ?? "imported-key"),
+				"keyid" => $k["id"],
+				"secret" => $secret
+			]);
+			$db->set($object);
+			$keyIdToUuid[$k["id"]] = $object->get("uuid");
+		}
+
+		// ---- Mappings: mirror live per-key bucket permissions.
+		$liveMaps = [];
+		foreach ($liveKeys as $k) {
+			try {
+				$info = $this->jsonApi($db, $instanceUuid, "GetKeyInfo",
+					json_encode(["id" => $k["id"]]));
+			} catch (\Exception $e) {
+				continue;
+			}
+			foreach ($info["buckets"] ?? [] as $be) {
+				$perms = $be["permissions"] ?? [];
+				$liveMaps[$k["id"] . "|" . $be["id"]] = [
+					!empty($perms["read"]), !empty($perms["write"]),
+					!empty($perms["owner"])];
+			}
+		}
+		$mappingByKey = [];
+		$deadMappings = [];
+		foreach ($db->get("conf.service.garage.mapping") as $m) {
+			if ($m->get("instanceuuid") !== $instanceUuid) {
+				continue;
+			}
+			$keyid = array_search($m->get("keyuuid"), $keyIdToUuid, true);
+			$gid = array_search($m->get("bucketuuid"), $bucketIdToUuid, true);
+			$pair = ($keyid === false || $gid === false)
+				? "stale" : $keyid . "|" . $gid;
+			if (!isset($liveMaps[$pair])) {
+				$deadMappings[] = $m;
+				continue;
+			}
+			$mappingByKey[$pair] = $m;
+			$flags = $liveMaps[$pair];
+			if ($m->get("allowread") !== $flags[0] ||
+				$m->get("allowwrite") !== $flags[1] ||
+				$m->get("allowowner") !== $flags[2]) {
+				$m->set("allowread", $flags[0]);
+				$m->set("allowwrite", $flags[1]);
+				$m->set("allowowner", $flags[2]);
+				$db->set($m);
+			}
+		}
+		foreach ($deadMappings as $m) {
+			$db->delete($m);
+		}
+		foreach ($liveMaps as $pair => $flags) {
+			if (isset($mappingByKey[$pair])) {
+				continue;
+			}
+			[$keyid, $gid] = explode("|", $pair);
+			$object = new \OMV\Config\ConfigObject(
+				"conf.service.garage.mapping");
+			$object->setAssoc([
+				"uuid" => $newUuid,
+				"instanceuuid" => $instanceUuid,
+				"keyuuid" => $keyIdToUuid[$keyid],
+				"bucketuuid" => $bucketIdToUuid[$gid],
+				"allowread" => $flags[0], "allowwrite" => $flags[1],
+				"allowowner" => $flags[2]
+			]);
+			$db->set($object);
+		}
+	}
+
+	private function uniqueName($db, $model, $parentField, $parentValue,
+		$nameField, $base)
+	{
+		$used = [];
+		foreach ($db->get($model) as $objectv) {
+			if ($objectv->get($parentField) === $parentValue) {
+				$used[] = $objectv->get($nameField);
+			}
+		}
+		if (!in_array($base, $used, true)) {
+			return $base;
+		}
+		for ($i = 2; ; $i++) {
+			$candidate = $base . "-" . $i;
+			if (!in_array($candidate, $used, true)) {
+				return $candidate;
+			}
+		}
+	}
+
 
 	private function revokeAcls($db, $instance)
 	{
