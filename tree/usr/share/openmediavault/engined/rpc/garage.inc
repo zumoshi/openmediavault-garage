@@ -258,13 +258,17 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			// Silently resolve duplicate ports with the next free port. The
 			// create dialog pre-suggests unused ports, but a stale page or a
 			// race with another creation must not block a plain "next-next"
-			// workflow.
+			// workflow. Fields the form does not post (the web UI port is
+			// auto-assigned) fall back to a suggestion instead of 0.
+			$suggested = $this->computeSuggestedPorts();
 			$used = array_merge(
 				$this->collectUsedPorts($db, null),
 				$this->collectListeningPorts()
 			);
 			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
-				$port = intval($params[$key]);
+				$port = isset($params[$key]) && $params[$key] !== "" &&
+					!is_null($params[$key])
+					? intval($params[$key]) : $suggested[$key];
 				while (in_array($port, $used)) {
 					$port++;
 				}
@@ -285,9 +289,14 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				password_hash($params["webuipassword"], PASSWORD_BCRYPT);
 		} else {
 			// On edit, ports must not collide with other instances. Explicit
-			// conflicts are reported, not silently resolved.
+			// conflicts are reported, not silently resolved. Fields the form
+			// does not post keep their stored value.
 			$used = $this->collectUsedPorts($db, $params["uuid"]);
 			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
+				if (!isset($params[$key]) || $params[$key] === "" ||
+					is_null($params[$key])) {
+					continue;
+				}
 				if (in_array(intval($params[$key]), $used)) {
 					throw new \OMV\Exception(sprintf(
 						gettext("Port %d is already used by another Garage instance."),
