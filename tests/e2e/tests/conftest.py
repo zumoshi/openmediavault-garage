@@ -143,3 +143,11 @@ def cleanup_stale(rpc):
             rpc.delete_instance(i["uuid"])
     rpc.apply(["garage"])
     yield
+
+
+@pytest.fixture()
+def fresh_page(browser):
+    """A browser page with no OMV session (no cookies)."""
+    page = browser.new_page()
+    yield page
+    page.close()

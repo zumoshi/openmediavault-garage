@@ -76,3 +76,9 @@ def share_path(ssh, share_name: str) -> str:
         "omv-confdbadm read conf.system.filesystem.mountpoint"))
     mp = next(m for m in mounts if m["uuid"] == share["mntentref"])
     return mp["dir"].rstrip("/") + "/" + share["reldirpath"].strip("/")
+
+
+def instance_row(rpc: Rpc, name: str) -> dict:
+    listing = rpc.call("Garage", "getInstanceList",
+                       {"start": 0, "limit": -1})
+    return next(x for x in listing["data"] if x["name"] == name)
