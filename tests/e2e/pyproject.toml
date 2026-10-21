@@ -1,0 +1,15 @@
+[project]
+name = "garage-tester"
+version = "0.1.0"
+description = "Playwright end-to-end tests for the openmediavault-garage plugin"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "boto3>=1.43.115",
+    "playwright>=1.64.0",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
