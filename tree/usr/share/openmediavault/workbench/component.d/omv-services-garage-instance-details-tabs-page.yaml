@@ -27,6 +27,7 @@ data:
               sortable: true
             - name: _("Capacity (GiB)")
               prop: capacity
+              flexGrow: 1
               sortable: true
           actions:
             - template: create
@@ -74,16 +75,20 @@ data:
               sortable: true
             - name: _("State")
               prop: state
+              flexGrow: 1
               sortable: true
             - name: _("Website")
               prop: website
+              flexGrow: 1
               sortable: true
               cellTemplateName: checkIcon
             - name: _("Objects")
               prop: objects
+              flexGrow: 1
               sortable: true
             - name: _("Size")
               prop: bytes
+              flexGrow: 1
               sortable: true
               cellTemplateName: template
               cellTemplateConfig: '{{ bytes | tobytes | binaryunit | notavailable("-") }}'
@@ -185,14 +190,17 @@ data:
               sortable: true
             - name: _("Read")
               prop: allowread
+              flexGrow: 1
               sortable: true
               cellTemplateName: checkIcon
             - name: _("Write")
               prop: allowwrite
+              flexGrow: 1
               sortable: true
               cellTemplateName: checkIcon
             - name: _("Owner")
               prop: allowowner
+              flexGrow: 1
               sortable: true
               cellTemplateName: checkIcon
           actions:

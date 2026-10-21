@@ -27,6 +27,7 @@ data:
         sortable: true
       - name: _("Status")
         prop: status
+        flexGrow: 1
         sortable: true
         cellTemplateName: chip
         cellTemplateConfig:
@@ -42,15 +43,19 @@ data:
               class: "omv-background-color-pair-warning"
       - name: _("Datastores")
         prop: datastorecount
+        flexGrow: 1
         sortable: true
       - name: _("S3 port")
         prop: s3port
+        flexGrow: 1
         sortable: true
       - name: _("RPC port")
         prop: rpcport
+        flexGrow: 1
         sortable: true
       - name: _("Web UI")
         prop: webuirunning
+        flexGrow: 1
         sortable: true
         cellTemplateName: checkIcon
     actions:
