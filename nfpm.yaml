@@ -4,7 +4,7 @@ version: ${VERSION}
 release: ${RELEASE}
 section: net
 priority: optional
-maintainer: Garage OMV packaging <root@localhost>
+maintainer: bor <me@bor691.ir>
 description: |
   OpenMediaVault plugin for Garage, the S3-compatible self-hosted object
   storage. Manages multiple native Garage instances (no containers): each
