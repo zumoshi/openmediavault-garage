@@ -109,6 +109,11 @@ def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
     _resolve_pending_changes(page, "Apply", timeout_s)
 
 
+def undo_via_ui(page: Page, timeout_s: int = 120) -> None:
+    """Undo the pending changes through the banner."""
+    _resolve_pending_changes(page, "Undo", timeout_s)
+
+
 def _resolve_pending_changes(page: Page, button: str, timeout_s: int) -> None:
     """Click `button` in the pending-changes banner, confirm, and wait
     until the banner clears. Fails as soon as OMV reports an error."""

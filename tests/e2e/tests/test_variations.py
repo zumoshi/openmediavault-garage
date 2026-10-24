@@ -1,7 +1,9 @@
 """Variations: web UI on/off, split vs single storage, custom ports,
-extra datastores, disabled instances, and deletion cleanup."""
+extra datastores, disabled instances, a share path with a space, and
+deletion cleanup and undo."""
 
 import re
+import secrets
 
 import pytest
 from playwright.sync_api import expect
@@ -113,3 +115,38 @@ def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
         f"/etc/nginx/openmediavault-webgui.d/garage-webui-{name}.conf")
     assert ssh.run(f"getfacl -p {storpath} | grep -q user:garage",
                    check=False)[0] != 0, "storage ACL was not revoked"
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.8: Salt and the unit drop-in use the share path unquoted, so "
+    "a path with a space breaks deployment"))
+def test_share_path_with_space(ssh, shares, make_instance, s3_setup):
+    share = f"gt{secrets.token_hex(3)}"
+    shares.create(share, reldirpath=f"{share} with space/")
+    name, info = make_instance(storage_share=share)
+    toml = instance.read_instance_toml(ssh, name)
+    assert toml["metadata_dir"] == f"{shares.path(share)}/meta", \
+        toml["metadata_dir"]
+
+    conn = s3_setup(name, info["uuid"])
+    s3.round_trip(conn["endpoint"], conn["key_id"], conn["secret"],
+                  conn["bucket"], b"share path with a space works")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.6: deleteInstance stops the units and removes the files at "
+    "once, so undoing the pending delete leaves a dead instance"))
+def test_undo_delete_keeps_instance_running(page, cfg, ssh, make_instance):
+    name, info = make_instance()
+    ui.goto_instances(page, cfg.host)
+    ui.delete_instance_via_ui(page, name)
+    ui.undo_via_ui(page)
+
+    names = [i["name"] for i in ssh.confdb("conf.service.garage.instance")]
+    assert name in names, f"undo did not bring {name} back: {names}"
+    toml = ssh.file_exists(f"/etc/garage/{name}.toml")
+    state = ssh.unit_state(f"garage@{name}")
+    assert toml and state["SubState"] == "running", (
+        f"after undoing its delete, {name} is back in confdb but "
+        f"garage@{name} is {state['ActiveState']}/{state['SubState']} and "
+        f"its toml is {'present' if toml else 'gone'}")

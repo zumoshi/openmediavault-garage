@@ -21,13 +21,14 @@ class Shares:
         raise RuntimeError(
             f"no mounted filesystem matching disk {self.disk!r}")
 
-    def create(self, name: str) -> str:
-        """Create shared folder `name` and apply. Returns its name."""
+    def create(self, name: str, reldirpath: str | None = None) -> str:
+        """Create shared folder `name` in `reldirpath` (default `name/`) and
+        apply. Returns its name."""
         m = self._mount()
         self.rpc.call("ShareMgmt", "set", {
             "uuid": NEW_UUID,
             "name": name,
-            "reldirpath": f"{name}/",
+            "reldirpath": reldirpath or f"{name}/",
             "comment": "garage tester",
             "mntentref": m["uuid"],
             "mode": "775",

@@ -55,6 +55,7 @@ def shares(rpc, ssh, cfg):
 def make_instance(page, cfg, rpc, ssh, shares):
     """Create an instance through the web UI, apply, and register cleanup.
 
+    Pass `storage_share` to use an existing share instead of a new one.
     Returns (name, info) where info carries the storage share name, the
     meta share name when split, the datastore share name when requested,
     and the instance uuid."""
@@ -63,10 +64,10 @@ def make_instance(page, cfg, rpc, ssh, shares):
     def _make(*, enabled: bool = True, webui: bool = False,
               split: bool = False, ports: dict | None = None,
               extra_datastore: bool = False,
-              apply_now: bool = True) -> tuple[str, dict]:
+              storage_share: str | None = None) -> tuple[str, dict]:
         suffix = secrets.token_hex(3)
         name = f"gt{suffix}"
-        storage_share = shares.create(f"gt{suffix}a")
+        storage_share = storage_share or shares.create(f"gt{suffix}a")
         meta_share = shares.create(f"gt{suffix}b") if split else None
         ds_share = shares.create(f"gt{suffix}c") if extra_datastore else None
         ui.goto_instances(page, cfg.host)
