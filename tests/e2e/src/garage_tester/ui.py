@@ -67,17 +67,26 @@ def create_instance(
         raise AssertionError(f"instance creation did not finish: {body[:600]}")
 
 
-def apply_via_ui(page: Page, timeout_s: int = 300) -> None:
-    """Click the pending-changes Apply button and wait until it clears."""
+def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
+    """Click the pending-changes Apply button and wait until the banner
+    clears. Fails as soon as OMV reports the apply failed."""
     page.get_by_role("button", name="Apply").click(timeout=20000)
     page.get_by_role("dialog").wait_for(state="visible", timeout=20000)
     page.get_by_role("button", name="Yes").click()
+    error = page.locator("#toast-container .toast-error")
     try:
-        page.get_by_text("Pending configuration changes").wait_for(
-            state="hidden", timeout=timeout_s * 1000)
+        page.wait_for_function("""() =>
+            document.querySelector('#toast-container .toast-error')
+            || !document.body.innerText.includes('Pending configuration changes')
+            """, timeout=timeout_s * 1000)
     except PlaywrightTimeout:
         body = page.locator("body").inner_text()
         raise AssertionError(f"pending changes banner never cleared: {body[:600]}")
+    if error.count():
+        raise AssertionError(f"apply failed: {(error.first.text_content() or '')[:600]}")
+    # An expired OMV session drops the workbench to the login page, which
+    # has no banner either.
+    assert "#/login" not in page.url, "OMV session expired during apply"
 
 
 def wait_unit_running(ssh, name: str, timeout_s: int = 240) -> None:
