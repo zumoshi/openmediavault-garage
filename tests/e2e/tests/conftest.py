@@ -7,7 +7,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from garage_tester import instance, ui
-from garage_tester.leaks import is_test_name
+from garage_tester.leaks import is_test_name, leftovers
 from garage_tester.rpc import NEW_UUID, Rpc
 from garage_tester.settings import Settings
 from garage_tester.shares import Shares
@@ -118,7 +118,8 @@ def s3_setup(cfg, rpc, ssh):
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_stale(cfg, ssh, rpc):
     """Remove instances and shared folders a crashed earlier run left
-    behind."""
+    behind. Builds its own Shares rather than using the `shares` fixture,
+    which must be torn down before no_leaks checks the box."""
     stale = [i["name"] for i in rpc.enumerate_instances()
              if is_test_name(i["name"])]
     for name in stale:
@@ -135,3 +136,17 @@ def fresh_page(browser):
     page = browser.new_page()
     yield page
     page.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def no_leaks(ssh, cleanup_stale):
+    """Fail the run if anything the suite creates is left on the box.
+    Autouse and session scoped, so it is set up before and torn down after
+    every other fixture that creates state."""
+    if found := leftovers(ssh):
+        pytest.fail("box not clean after cleanup_stale:\n  "
+                    + "\n  ".join(found), pytrace=False)
+    yield
+    if found := leftovers(ssh):
+        pytest.fail("the suite leaked:\n  " + "\n  ".join(found),
+                    pytrace=False)
