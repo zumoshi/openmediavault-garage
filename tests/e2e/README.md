@@ -19,8 +19,17 @@ The tests never install anything.
   ACL revocation on the storage folder, and undoing a pending delete.
 - Editing an instance through the real edit form: a no-op edit, a
   read-only name, and rejected renames, port conflicts and region values.
-- A storage shared folder whose path contains a space.
+- A storage shared folder whose path contains a space, and a storage
+  shared folder on a filesystem with less than 1.1 GiB free.
+- Removing a datastore keeps every object readable and revokes the
+  datastore's ACL.
 - The web UI is reachable only with an OMV session.
+- Keys and buckets made directly against garage: imported once when the
+  details page loads its tabs at the same time, and usage shown for a
+  bucket without a global alias. The same bucket and key names on two
+  instances.
+- An apply leaves hand-written garage instances alone, and one instance
+  that cannot start does not stop the others from applying.
 
 ## Open bugs
 
@@ -43,20 +52,24 @@ over SSH and then talks to the running instance.
 
 ## What the suite owns on the host
 
-Every instance and shared folder the suite creates is named `gt` followed
-by 6 hex digits, sometimes with a suffix letter (`gt1a2b3c`, `gt1a2b3ca`).
-Do not give your own instances or shares names of that form. The suite
-deletes them.
+Every instance, shared folder and loop filesystem the suite creates is
+named `gt` followed by 6 hex digits, sometimes with a suffix letter
+(`gt1a2b3c`, `gt1a2b3ca`). Do not give your own instances, shares or
+filesystems names of that form. The suite deletes them.
+
+A loop filesystem `<name>` is the image `/root/<name>.img`, attached to a
+loop device and mounted through OMV with `<name>` as the mount point's
+comment.
 
 Two session fixtures in `tests/conftest.py` keep the host clean:
 
-- `cleanup_stale` deletes `gt<hex>` instances and shared folders that an
-  interrupted run left behind.
+- `cleanup_stale` deletes `gt<hex>` instances, shared folders and loop
+  filesystems that an interrupted run left behind.
 - `no_leaks` checks the host before the first test and after the last
   teardown. It fails the run if a `gt<hex>` instance, shared folder,
-  `/etc/garage` file, nginx location, `garage@` unit drop-in, or
-  `garage@`/`omv-garage-webui@` unit that is not inactive is left, and
-  lists each one.
+  `/etc/garage` file, nginx location, `garage@` unit drop-in,
+  `garage@`/`omv-garage-webui@` unit that is not inactive, or any part of
+  a loop filesystem is left, and lists each one.
 
 ## Run
 
