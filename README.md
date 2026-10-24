@@ -30,7 +30,7 @@ unprivileged `garage` user with systemd sandboxing.
 ## Install
 
 ```sh
-apt install ./openmediavault-garage_8.0.1-1_all.deb
+apt install ./openmediavault-garage_0.1.0-1_all.deb
 ```
 
 Requires the `garage` package (see the `garage-debian` repo). Then find the
@@ -66,9 +66,10 @@ Workflow per instance:
 ## Build
 
 ```sh
-VERSION=8.0.1 ./build.sh    # dist/openmediavault-garage_8.0.1-1_all.deb
+./build.sh    # dist/openmediavault-garage_0.1.0-1_all.deb
 ```
 
+The package version comes from the top entry of `debian/changelog`.
 Needs `nfpm` and `curl`. The vendored webui binary is checksum-pinned in
 `checksums/` and verified at build time; CI enforces it.
 
@@ -84,8 +85,11 @@ Needs `nfpm` and `curl`. The vendored webui binary is checksum-pinned in
 - `tree/usr/share/openmediavault/garage/sso/` (installed to
   `/var/www/openmediavault/garage-sso/`) - one-click web UI sign-in page
 - `tree/usr/lib/systemd/system/omv-garage-webui@.service` - web UI template
+- `debian/changelog` - package version and history, shipped as
+  `changelog.Debian.gz`
 
 ## License
 
-GPL-3. The vendored web UI is MIT (c) khairul169 and contributors; Garage is
-AGPL-3 (c) Deuxfleurs.
+GPL-3, copyright bor. The vendored web UI is MIT, copyright Khairul Hidayat.
+Garage is AGPL-3, copyright Deuxfleurs and the Garage contributors. See
+`tree/usr/share/doc/openmediavault-garage/copyright`.
