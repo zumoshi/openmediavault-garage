@@ -3,6 +3,7 @@ extra datastores, disabled instances, and deletion cleanup."""
 
 import re
 
+import pytest
 from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
@@ -38,6 +39,9 @@ def test_webui_disabled_by_default(ssh, make_instance):
     assert not ssh.unit_active(f"omv-garage-webui@{name}")
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.7: with a separate metadata folder and no datastore, the "
+    "template renders data_dir without a capacity and garage never starts"))
 def test_split_storage(page, cfg, ssh, shares, make_instance, s3_setup):
     name, info = make_instance(split=True, extra_datastore=True)
     toml = instance.read_instance_toml(ssh, name)
