@@ -27,7 +27,7 @@ def webui_instance(browser, cfg, rpc, ssh, shares):
     ui.goto_instances(page, cfg.host)
     ui.create_instance(page, name, share, webui=True)
     ui.apply_via_ui(page)
-    ui.wait_unit_running(ssh, name)
+    ssh.wait_unit_running(f"garage@{name}")
     uuid = rpc.instance_uuid(name)
     yield name, {"storage_share": share, "uuid": uuid}
     rpc.delete_instance(name)

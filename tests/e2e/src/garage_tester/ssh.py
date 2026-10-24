@@ -3,6 +3,7 @@
 
 import json
 import subprocess
+import time
 
 
 class Ssh:
@@ -35,6 +36,29 @@ class Ssh:
     def unit_active(self, unit: str) -> bool:
         return self.run(f"systemctl is-active {shquote(unit)}",
                         check=False)[1].strip() == "active"
+
+    def unit_state(self, unit: str) -> dict[str, str]:
+        out = self.out("systemctl show -p ActiveState,SubState,MainPID,NRestarts "
+                       f"{shquote(unit)}")
+        return dict(line.split("=", 1) for line in out.splitlines())
+
+    def wait_unit_running(self, unit: str, timeout_s: int = 240) -> None:
+        """Wait until `unit` runs and stays up. A crash-looping unit is
+        briefly active on every attempt, so the same process must still be
+        running, with no restart in between, a full RestartSec (5s) later."""
+        deadline = time.time() + timeout_s
+        state = self.unit_state(unit)
+        while time.time() < deadline:
+            if state["SubState"] == "running":
+                time.sleep(6)
+                later = self.unit_state(unit)
+                if later == state:
+                    return
+                state = later
+            else:
+                time.sleep(3)
+                state = self.unit_state(unit)
+        raise AssertionError(f"{unit} never stayed running, last seen {state}")
 
     def port_listening(self, port: int) -> bool:
         rc, _ = self.run(f"ss -tln | grep -q ':{port} '", check=False)

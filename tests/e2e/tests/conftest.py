@@ -77,7 +77,7 @@ def make_instance(page, cfg, rpc, ssh, shares):
         if apply_now:
             ui.apply_via_ui(page)
         if enabled:
-            ui.wait_unit_running(ssh, name)
+            ssh.wait_unit_running(f"garage@{name}")
         if extra_datastore:
             uuid = rpc.instance_uuid(name)
             rpc.call("Garage", "setDatastore", {

@@ -1,7 +1,5 @@
 """Playwright helpers for the OpenMediaVault workbench."""
 
-import time
-
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeout
 
 INSTANCES_URL = "/#/services/garage/instances"
@@ -87,15 +85,6 @@ def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
     # An expired OMV session drops the workbench to the login page, which
     # has no banner either.
     assert "#/login" not in page.url, "OMV session expired during apply"
-
-
-def wait_unit_running(ssh, name: str, timeout_s: int = 240) -> None:
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        if ssh.unit_active(f"garage@{name}"):
-            return
-        time.sleep(3)
-    raise AssertionError(f"garage@{name} never became active")
 
 
 def select_row(page: Page, name: str) -> None:
