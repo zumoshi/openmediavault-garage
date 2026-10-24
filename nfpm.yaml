@@ -1,5 +1,5 @@
 name: openmediavault-garage
-arch: all
+arch: amd64
 version: ${VERSION}
 release: ${RELEASE}
 section: net

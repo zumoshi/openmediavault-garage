@@ -51,7 +51,7 @@ build)
 	mkdir -p dist
 	VERSION="$VERSION" RELEASE="$RELEASE" \
 		nfpm package -f nfpm.yaml -p deb \
-		-t "dist/openmediavault-garage_${VERSION}-${RELEASE}_all.deb"
+		-t "dist/openmediavault-garage_${VERSION}-${RELEASE}_amd64.deb"
 	;;
 *)
 	usage
