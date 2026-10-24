@@ -80,7 +80,7 @@ def test_webui_created_bucket_imported(ssh, rpc, make_instance):
         f"alias-less bucket not imported: {names}"
 
 
-def test_import_reflects_permissions(ssh, rpc, make_instance, make_share):
+def test_import_reflects_permissions(ssh, rpc, make_instance):
     name, info = make_instance(webui=False, extra_datastore=True)
     uuid = info["uuid"]
 

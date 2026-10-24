@@ -53,24 +53,6 @@ def shares(rpc, ssh, cfg):
     obj.cleanup()
 
 
-@pytest.fixture(scope="session")
-def make_share(shares):
-    created = []
-
-    def _make(base: str) -> str:
-        name = f"gt-{base}-{secrets.token_hex(3)}"
-        shares.create(name)
-        created.append(name)
-        return name
-
-    yield _make
-    for name in created:
-        uuid = shares.uuid_by_name(name)
-        rpc.call("ShareMgmt", "delete", {"uuid": uuid, "recursive": True})
-    if created:
-        rpc.apply(["sharedfolders"])
-
-
 @pytest.fixture()
 def make_instance(page, cfg, rpc, ssh, shares):
     """Create an instance through the web UI, apply, and register cleanup.

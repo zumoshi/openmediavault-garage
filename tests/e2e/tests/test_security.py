@@ -16,11 +16,9 @@ NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
 
 
 @pytest.fixture(scope="module")
-def webui_instance(browser, cfg, rpc, ssh, make_share):
+def webui_instance(browser, cfg, rpc, ssh, shares):
     """One webui-enabled instance shared by the security tests, created
     through the web UI and deleted afterwards."""
-    from garage_tester.shares import Shares
-    shares = Shares(ssh, rpc, cfg.disk)
     page = browser.new_page()
     ui.login(page, cfg.host, cfg.admin_password)
     suffix = secrets.token_hex(3)

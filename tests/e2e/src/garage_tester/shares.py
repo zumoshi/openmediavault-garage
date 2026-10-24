@@ -2,8 +2,6 @@
 
 import json
 import shlex
-import shlex
-import secrets
 
 from .rpc import Rpc
 from .ssh import Ssh
@@ -57,6 +55,3 @@ class Shares:
             "omv-confdbadm read conf.system.sharedfolder"))
         return next(s["uuid"] for s in shares if s["name"] == name)
 
-
-def fresh_prefix() -> str:
-    return f"gt-{secrets.token_hex(3)}"
