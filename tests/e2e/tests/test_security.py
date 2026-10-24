@@ -13,6 +13,7 @@ from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
 from garage_tester.rpc import NEW_UUID
+from garage_tester.ssh import shquote
 
 
 @pytest.fixture(scope="module")
@@ -59,16 +60,58 @@ def test_sso_without_omv_session_rejected(fresh_page, cfg, webui_instance):
         "SSO page reached the web UI without an OMV session"
 
 
-def test_webui_direct_access_shows_own_login(fresh_page, cfg, webui_instance):
-    """Direct webui access without an OMV session (and without the webui
-    session cookie) must show the web UI's own login form."""
+def _get(url: str, cookie: str | None = None) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers={"Cookie": cookie} if cookie else {})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.status, r.read().decode(errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode(errors="replace")
+
+
+def _webui_cookie(ssh, uuid: str) -> str:
+    """Sign in to the web UI on loopback, the way only the box itself can,
+    and return its session cookie."""
+    row = next(i for i in ssh.confdb("conf.service.garage.instance")
+               if i["uuid"] == uuid)
+    login = json.dumps({"username": row["webuiuser"],
+                        "password": row["webuipassword"]})
+    jar = ssh.out(
+        "curl -s -o /dev/null -c - -H 'Content-Type: application/json' "
+        f"-d {shquote(login)} "
+        f"http://127.0.0.1:{row['webuiport']}/garage-webui-{row['name']}"
+        "/api/auth/login")
+    cookies = [line.split("\t") for line in jar.splitlines()
+               if line.count("\t") == 6]
+    assert cookies, f"web UI login on loopback set no cookie: {jar}"
+    return "; ".join(f"{c[5]}={c[6]}" for c in cookies)
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.10: nginx proxies /garage-webui-<name>/ to anyone who can "
+    "reach OMV; the web UI's own login is the only gate"))
+def test_webui_requires_omv_session(cfg, webui_instance):
     name, _ = webui_instance
-    fresh_page.goto(f"http://{cfg.host}/garage-webui-{name}/")
-    expect(fresh_page.locator("input[type=password]").first).to_be_visible(
-        timeout=15000)
-    body = fresh_page.locator("body").inner_text().lower()
-    assert "healthy" not in body, \
-        f"unauthenticated visitor sees a live dashboard: {body[:200]}"
+    url = f"http://{cfg.host}/garage-webui-{name}/"
+    status, body = _get(url)
+    assert status in (401, 403), \
+        f"GET {url} without an OMV session got {status}: {body[:200]}"
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.10: the web UI API holds the admin token and nginx serves it "
+    "to anyone with a web UI cookie, OMV session or not"))
+def test_webui_api_requires_omv_session(cfg, ssh, webui_instance):
+    """Every /api/ path already answers 401 to a caller with no cookie at
+    all, from the web UI itself, so that alone proves nothing. A caller
+    holding the web UI's own session but no OMV session must be turned
+    away too."""
+    name, info = webui_instance
+    url = f"http://{cfg.host}/garage-webui-{name}/api/buckets"
+    status, body = _get(url, cookie=_webui_cookie(ssh, info["uuid"]))
+    assert status in (401, 403), (
+        f"GET {url} with a web UI cookie but no OMV session got {status}: "
+        f"{body[:200]}")
 
 
 def _assert_session_rejected(status: int, body: str) -> None:
