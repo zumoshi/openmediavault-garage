@@ -66,9 +66,20 @@ def create_instance(
 
 
 def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
-    """Click the pending-changes Apply button and wait until the banner
-    clears. Fails as soon as OMV reports the apply failed."""
-    page.get_by_role("button", name="Apply").click(timeout=20000)
+    """Apply the pending changes through the banner."""
+    _resolve_pending_changes(page, "Apply", timeout_s)
+
+
+def _resolve_pending_changes(page: Page, button: str, timeout_s: int) -> None:
+    """Click `button` in the pending-changes banner, confirm, and wait
+    until the banner clears. Fails as soon as OMV reports an error."""
+    responses = []
+
+    def collect(response) -> None:
+        responses.append(response)
+
+    page.on("response", collect)
+    page.get_by_role("button", name=button).click(timeout=20000)
     page.get_by_role("dialog").wait_for(state="visible", timeout=20000)
     page.get_by_role("button", name="Yes").click()
     error = page.locator("#toast-container .toast-error")
@@ -80,11 +91,37 @@ def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
     except PlaywrightTimeout:
         body = page.locator("body").inner_text()
         raise AssertionError(f"pending changes banner never cleared: {body[:600]}")
+    finally:
+        page.remove_listener("response", collect)
     if error.count():
-        raise AssertionError(f"apply failed: {(error.first.text_content() or '')[:600]}")
+        raise AssertionError(f"{button} failed: " + _failed_states(
+            _rpc_error(responses) or error.first.text_content() or ""))
     # An expired OMV session drops the workbench to the login page, which
     # has no banner either.
-    assert "#/login" not in page.url, "OMV session expired during apply"
+    assert "#/login" not in page.url, f"OMV session expired during {button}"
+
+
+def _rpc_error(responses) -> str | None:
+    """The last RPC error message. The toast cuts it to about 1500 chars,
+    which on a failed apply is Salt's first few, passing, states."""
+    messages = []
+    for response in responses:
+        if not response.url.endswith("/rpc.php"):
+            continue
+        try:
+            body = response.json()
+        except Exception:  # a body that is gone or not JSON has no error
+            continue
+        if isinstance(body, dict) and (body.get("error") or {}).get("message"):
+            messages.append(body["error"]["message"])
+    return messages[-1] if messages else None
+
+
+def _failed_states(message: str) -> str:
+    """A failed apply reports Salt's whole run. Keep the states that failed."""
+    failed = [b.strip() for b in message.split("----------")
+              if "Result: False" in b]
+    return "\n----------\n".join(failed)[:3000] if failed else message[:600]
 
 
 def select_row(page: Page, name: str) -> None:

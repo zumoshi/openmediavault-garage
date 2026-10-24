@@ -74,8 +74,7 @@ def make_instance(page, cfg, rpc, ssh, shares):
             page, name, storage_share, enabled=enabled, webui=webui,
             split_meta_share=meta_share, ports=ports)
         created.append(name)
-        if apply_now:
-            ui.apply_via_ui(page)
+        ui.apply_via_ui(page)
         if enabled:
             ssh.wait_unit_running(f"garage@{name}")
         if extra_datastore:
