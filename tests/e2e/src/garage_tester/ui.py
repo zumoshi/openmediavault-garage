@@ -3,6 +3,11 @@
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeout, expect
 
 INSTANCES_URL = "/#/services/garage/instances"
+DETAILS_URL = "/#/services/garage/details"
+
+# The list RPC behind each tab of the instance details page.
+DETAILS_LISTS = ("getDatastoreList", "getBucketList", "getKeyList",
+                 "getMappingList")
 
 
 def login(page: Page, host: str, password: str) -> None:
@@ -17,6 +22,34 @@ def goto_instances(page: Page, host: str) -> None:
     page.goto(f"http://{host}{INSTANCES_URL}")
     page.get_by_role("button", name="Create").wait_for(
         state="visible", timeout=30000)
+
+
+def open_details(page: Page, host: str, uuid: str,
+                 timeout_s: int = 60) -> dict[str, dict]:
+    """Open the instance details page and wait until every tab's list
+    request has answered. Returns each list RPC's response body."""
+    responses = {}
+
+    def collect(response) -> None:
+        if response.url.endswith("/rpc.php"):
+            method = (response.request.post_data_json or {}).get("method")
+            if method in DETAILS_LISTS:
+                responses[method] = response
+
+    page.on("response", collect)
+    try:
+        page.goto(f"http://{host}{DETAILS_URL}/{uuid}")
+        for _ in range(timeout_s * 4):
+            if len(responses) == len(DETAILS_LISTS):
+                break
+            page.wait_for_timeout(250)
+        else:
+            raise AssertionError(
+                f"the details page never requested every tab's list, "
+                f"answered: {sorted(responses)}")
+    finally:
+        page.remove_listener("response", collect)
+    return {method: r.json() for method, r in responses.items()}
 
 
 def name_field(page: Page):
@@ -186,3 +219,16 @@ def delete_instance_via_ui(page: Page, name: str) -> None:
     select_row(page, name)
     page.get_by_role("button", name="Delete").click()
     page.get_by_role("button", name="Yes").click(timeout=20000)
+
+
+def rpc_concurrently(page: Page, service: str, methods: list[str],
+                     params: dict) -> dict[str, dict]:
+    """Post one RPC per method at once from the logged-in page, the way a
+    tabs page loads its tabs. Returns each method's response body."""
+    bodies = page.evaluate("""([service, methods, params]) => Promise.all(
+        methods.map(method => fetch('/rpc.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({service, method, params}),
+        }).then(r => r.json())))""", [service, methods, params])
+    return dict(zip(methods, bodies))
