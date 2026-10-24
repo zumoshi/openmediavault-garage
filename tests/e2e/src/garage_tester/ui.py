@@ -12,13 +12,21 @@ def login(page: Page, host: str, password: str) -> None:
     page.get_by_role("textbox", name="User name").fill("admin")
     page.get_by_role("textbox", name="Password").fill(password)
     page.get_by_role("button", name="Log in").click()
-    page.wait_for_timeout(2500)
+    page.wait_for_url(lambda url: url.endswith("#/dashboard"))
 
 
 def goto_instances(page: Page, host: str) -> None:
     page.goto(f"http://{host}{INSTANCES_URL}")
     page.get_by_role("button", name="Create").wait_for(
         state="visible", timeout=30000)
+
+
+def _pick_option(page: Page, text: str) -> None:
+    """Click `text` in the open select panel and wait for it to close."""
+    option = page.locator(".cdk-overlay-container").get_by_text(
+        text, exact=True).first
+    option.click()
+    option.wait_for(state="hidden")
 
 
 def create_instance(
@@ -39,10 +47,7 @@ def create_instance(
         page.locator("label", has_text="Enabled").first.click()
     page.get_by_role("textbox", name="Name").fill(name)
     page.get_by_role("combobox", name="Storage shared folder").click()
-    page.wait_for_timeout(600)
-    page.locator(".cdk-overlay-container").get_by_text(
-        storage_share, exact=True).first.click()
-    page.wait_for_timeout(400)
+    _pick_option(page, storage_share)
     for label, port in (ports or {}).items():
         page.get_by_role("spinbutton", name=label).fill(str(port))
     if webui:
@@ -50,11 +55,8 @@ def create_instance(
     if split_meta_share is not None:
         page.locator(
             "label", has_text="Separate metadata shared folder").first.click()
-        page.wait_for_timeout(400)
         page.get_by_role("combobox", name="Metadata shared folder").click()
-        page.wait_for_timeout(600)
-        page.locator(".cdk-overlay-container").get_by_text(
-            split_meta_share, exact=True).first.click()
+        _pick_option(page, split_meta_share)
     page.get_by_role("button", name="Save").click()
     # Either we are back at the table, or an error dialog appeared.
     try:
@@ -70,15 +72,12 @@ def apply_via_ui(page: Page, timeout_s: int = 300) -> None:
     page.get_by_role("button", name="Apply").click(timeout=20000)
     page.get_by_role("dialog").wait_for(state="visible", timeout=20000)
     page.get_by_role("button", name="Yes").click()
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        page.wait_for_timeout(3000)
-        if page.get_by_text(
-                "Pending configuration changes").count() == 0:
-            return
-        page.reload()
-        page.wait_for_timeout(1500)
-    raise AssertionError("pending changes banner never cleared")
+    try:
+        page.get_by_text("Pending configuration changes").wait_for(
+            state="hidden", timeout=timeout_s * 1000)
+    except PlaywrightTimeout:
+        body = page.locator("body").inner_text()
+        raise AssertionError(f"pending changes banner never cleared: {body[:600]}")
 
 
 def wait_unit_running(ssh, name: str, timeout_s: int = 240) -> None:
@@ -101,7 +100,6 @@ def open_webui(page: Page, name: str) -> Page:
         page.get_by_text("Web UI", exact=True).last.click()
     popup = popup_info.value
     popup.wait_for_load_state()
-    popup.wait_for_timeout(4000)
     return popup
 
 

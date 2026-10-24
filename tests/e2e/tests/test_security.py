@@ -2,12 +2,14 @@
 a degraded state is visible, from outside the OMV session."""
 
 import json
+import re
 import secrets
 import urllib.error
 import urllib.request
 
 import pytest
 from botocore.exceptions import ClientError
+from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
 from garage_tester.rpc import NEW_UUID
@@ -51,12 +53,10 @@ def test_sso_without_omv_session_rejected(fresh_page, cfg, webui_instance):
     never land in an authenticated web UI."""
     name, _ = webui_instance
     fresh_page.goto(f"http://{cfg.host}/garage-sso/?instance={name}")
-    fresh_page.wait_for_timeout(6000)
+    expect(fresh_page.locator("body")).to_contain_text(
+        re.compile("error", re.I), timeout=15000)
     assert f"/garage-webui-{name}/" not in fresh_page.url, \
         "SSO page reached the web UI without an OMV session"
-    body = fresh_page.locator("body").inner_text().lower()
-    assert "error" in body, \
-        f"expected a visible sign-in error, got: {body[:200]}"
 
 
 def test_webui_direct_access_shows_own_login(fresh_page, cfg, webui_instance):
@@ -64,13 +64,11 @@ def test_webui_direct_access_shows_own_login(fresh_page, cfg, webui_instance):
     session cookie) must show the web UI's own login form."""
     name, _ = webui_instance
     fresh_page.goto(f"http://{cfg.host}/garage-webui-{name}/")
-    fresh_page.wait_for_timeout(3000)
+    expect(fresh_page.locator("input[type=password]").first).to_be_visible(
+        timeout=15000)
     body = fresh_page.locator("body").inner_text().lower()
     assert "healthy" not in body, \
         f"unauthenticated visitor sees a live dashboard: {body[:200]}"
-    assert fresh_page.locator(
-        "input[type=password]").count() > 0, \
-        "web UI login form not shown to unauthenticated visitor"
 
 
 def test_getwebuilogin_rpc_requires_session(cfg, webui_instance):
@@ -101,7 +99,8 @@ def test_omv_wrong_password_rejected(fresh_page, cfg):
     fresh_page.get_by_role("textbox", name="User name").fill("admin")
     fresh_page.get_by_role("textbox", name="Password").fill("wrong-password")
     fresh_page.get_by_role("button", name="Log in").click()
-    fresh_page.wait_for_timeout(2500)
+    expect(fresh_page.get_by_text("Incorrect username or password.")
+           ).to_be_visible(timeout=15000)
     assert "login" in fresh_page.url, \
         f"wrong password reached the workbench: {fresh_page.url}"
 

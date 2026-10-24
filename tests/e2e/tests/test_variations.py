@@ -1,6 +1,10 @@
 """Variations: web UI on/off, split vs single storage, custom ports,
 extra datastores, disabled instances, and deletion cleanup."""
 
+import re
+
+from playwright.sync_api import expect
+
 from garage_tester import instance, s3, ui
 
 
@@ -17,12 +21,9 @@ def test_webui_enabled_and_sso(page, cfg, ssh, rpc, make_instance):
 
     ui.goto_instances(page, cfg.host)
     popup = ui.open_webui(page, name)
-    for _ in range(15):
-        if f"/garage-webui-{name}/" in popup.url:
-            break
-        popup.wait_for_timeout(1000)
-    assert f"/garage-webui-{name}/" in popup.url, popup.url
-    popup.wait_for_timeout(2000)
+    popup.wait_for_url(lambda url: f"/garage-webui-{name}/" in url)
+    expect(popup.locator("body")).to_contain_text(
+        re.compile("healthy", re.I), timeout=15000)
     body = popup.locator("body").inner_text().lower()
     assert "dashboard" in body and "healthy" in body, \
         f"web UI did not load an authenticated dashboard: {body[:200]}"
