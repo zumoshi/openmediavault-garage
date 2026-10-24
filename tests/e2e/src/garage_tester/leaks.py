@@ -1,7 +1,10 @@
-"""What the suite owns on the box. Every instance and shared folder it
-creates is named gt<6 hex>, optionally followed by a suffix letter."""
+"""What the suite owns on the box. Every instance, shared folder and
+filesystem it creates is named gt<6 hex>, optionally followed by a suffix
+letter."""
 
 import re
+
+from . import filesystems
 
 TEST_NAME = re.compile(r"gt[0-9a-f]{6}")
 
@@ -37,4 +40,6 @@ def leftovers(ssh) -> list[str]:
         unit, _load, active, sub = line.split()[:4]
         if active != "inactive" and is_test_name(unit.split("@", 1)[1]):
             found.append(f"unit {unit} ({active}/{sub})")
+    found += [f"filesystem {name}" for name in sorted(filesystems.names(ssh))
+              if is_test_name(name)]
     return found

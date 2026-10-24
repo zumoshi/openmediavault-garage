@@ -6,7 +6,7 @@ import secrets
 import pytest
 from playwright.sync_api import sync_playwright
 
-from garage_tester import instance, ui
+from garage_tester import filesystems, instance, ui
 from garage_tester.leaks import is_test_name, leftovers
 from garage_tester.rpc import NEW_UUID, Rpc
 from garage_tester.settings import Settings
@@ -117,8 +117,8 @@ def s3_setup(cfg, rpc, ssh):
 
 @pytest.fixture(scope="session", autouse=True)
 def cleanup_stale(cfg, ssh, rpc):
-    """Remove instances and shared folders a crashed earlier run left
-    behind. Builds its own Shares rather than using the `shares` fixture,
+    """Remove instances, shared folders and filesystems a crashed earlier
+    run left behind. Builds its own Shares rather than using the `shares` fixture,
     which must be torn down before no_leaks checks the box."""
     stale = [i["name"] for i in rpc.enumerate_instances()
              if is_test_name(i["name"])]
@@ -128,6 +128,9 @@ def cleanup_stale(cfg, ssh, rpc):
         rpc.apply(["garage"])
     shares = Shares(ssh, rpc, cfg.disk)
     shares.delete([n for n in shares.names() if is_test_name(n)])
+    for name in filesystems.names(ssh):
+        if is_test_name(name):
+            filesystems.remove(ssh, rpc, name)
 
 
 @pytest.fixture()

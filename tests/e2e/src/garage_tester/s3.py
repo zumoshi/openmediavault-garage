@@ -1,5 +1,8 @@
 """S3 smoke via boto3 against the instance's S3 port."""
 
+import hashlib
+import os
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
@@ -32,3 +35,32 @@ def must_be_denied(endpoint: str, key_id: str = "GKinvalid",
     except ClientError:
         return
     raise AssertionError("invalid S3 credentials were accepted")
+
+
+def put_random_objects(s3, bucket: str, count: int,
+                       size: int) -> dict[str, str]:
+    """Put `count` objects of `size` random bytes. Returns each key's
+    sha256."""
+    digests = {}
+    for i in range(count):
+        body = os.urandom(size)
+        key = f"obj-{i:04d}"
+        s3.put_object(Bucket=bucket, Key=key, Body=body)
+        digests[key] = hashlib.sha256(body).hexdigest()
+    return digests
+
+
+def unreadable(s3, bucket: str, digests: dict[str, str]) -> dict[str, str]:
+    """The objects that do not read back with their sha256, and why.
+    Garage may send the headers and then cut the body, so this reads the
+    whole body."""
+    failed = {}
+    for key, digest in digests.items():
+        try:
+            body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+        except Exception as e:  # any failure to read counts, keep its type
+            failed[key] = f"{type(e).__name__}: {e}"
+            continue
+        if hashlib.sha256(body).hexdigest() != digest:
+            failed[key] = f"content differs ({len(body)} bytes read)"
+    return failed

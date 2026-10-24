@@ -21,16 +21,17 @@ class Shares:
         raise RuntimeError(
             f"no mounted filesystem matching disk {self.disk!r}")
 
-    def create(self, name: str, reldirpath: str | None = None) -> str:
-        """Create shared folder `name` in `reldirpath` (default `name/`) and
-        apply. Returns its name."""
-        m = self._mount()
+    def create(self, name: str, reldirpath: str | None = None,
+               mntentref: str | None = None) -> str:
+        """Create shared folder `name` in `reldirpath` (default `name/`) on
+        mount point `mntentref` (default the OMV_DISK one) and apply.
+        Returns its name."""
         self.rpc.call("ShareMgmt", "set", {
             "uuid": NEW_UUID,
             "name": name,
             "reldirpath": reldirpath or f"{name}/",
             "comment": "garage tester",
-            "mntentref": m["uuid"],
+            "mntentref": mntentref or self._mount()["uuid"],
             "mode": "775",
         })
         self.rpc.apply(["sharedfolders"])
@@ -38,14 +39,15 @@ class Shares:
         return name
 
     def cleanup(self):
-        self.delete(self._created)
-        self._created.clear()
+        self.delete(list(self._created))
 
     def delete(self, names: list[str]):
         """Delete shared folders `names` with their content, and apply."""
         for name in names:
             self.rpc.call("ShareMgmt", "delete",
                           {"uuid": self.uuid_by_name(name), "recursive": True})
+            if name in self._created:
+                self._created.remove(name)
         if names:
             self.rpc.apply(["sharedfolders"])
 
