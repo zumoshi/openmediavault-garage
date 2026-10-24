@@ -1,6 +1,6 @@
 """Playwright helpers for the OpenMediaVault workbench."""
 
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeout
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeout, expect
 
 INSTANCES_URL = "/#/services/garage/instances"
 
@@ -17,6 +17,12 @@ def goto_instances(page: Page, host: str) -> None:
     page.goto(f"http://{host}{INSTANCES_URL}")
     page.get_by_role("button", name="Create").wait_for(
         state="visible", timeout=30000)
+
+
+def name_field(page: Page):
+    """The instance form's Name box. Exact, so "Web UI user name" never
+    matches."""
+    return page.get_by_role("textbox", name="Name", exact=True)
 
 
 def _pick_option(page: Page, text: str) -> None:
@@ -39,11 +45,10 @@ def create_instance(
 ) -> None:
     """Fill the create form and save. Ports keys use the form labels."""
     page.get_by_role("button", name="Create").click()
-    page.get_by_role("textbox", name="Name").wait_for(
-        state="visible", timeout=20000)
+    name_field(page).wait_for(state="visible", timeout=20000)
     if not enabled:
         page.locator("label", has_text="Enabled").first.click()
-    page.get_by_role("textbox", name="Name").fill(name)
+    name_field(page).fill(name)
     page.get_by_role("combobox", name="Storage shared folder").click()
     _pick_option(page, storage_share)
     for label, port in (ports or {}).items():
@@ -55,6 +60,11 @@ def create_instance(
             "label", has_text="Separate metadata shared folder").first.click()
         page.get_by_role("combobox", name="Metadata shared folder").click()
         _pick_option(page, split_meta_share)
+    save_form(page)
+
+
+def save_form(page: Page) -> None:
+    """Click Save and wait until the workbench is back at the table."""
     page.get_by_role("button", name="Save").click()
     # Either we are back at the table, or an error dialog appeared.
     try:
@@ -62,7 +72,36 @@ def create_instance(
             state="visible", timeout=20000)
     except PlaywrightTimeout:
         body = page.locator("body").inner_text()
-        raise AssertionError(f"instance creation did not finish: {body[:600]}")
+        raise AssertionError(f"saving the form did not finish: {body[:600]}")
+
+
+def open_edit_form(page: Page, host: str, uuid: str, name: str) -> None:
+    page.goto(f"http://{host}{INSTANCES_URL}/edit/{uuid}")
+    expect(name_field(page)).to_have_value(name, timeout=30000)
+
+
+def touch_form(page: Page) -> None:
+    """Make the open form dirty without changing a value. OMV keeps Save
+    disabled on a pristine form, so this is what a no-op edit takes."""
+    region = page.get_by_role("textbox", name="Region")
+    value = region.input_value()
+    region.fill("")
+    region.fill(value)
+
+
+def capture_form_post(page: Page) -> dict:
+    """Click Save but drop the request. Returns the setInstance params
+    exactly as the open form posts them."""
+    def is_set(request) -> bool:
+        return (request.url.endswith("/rpc.php")
+                and (request.post_data_json or {}).get("method") == "setInstance")
+
+    page.route("**/rpc.php", lambda route: route.abort() if is_set(route.request)
+               else route.continue_())
+    with page.expect_request(is_set) as request:
+        page.get_by_role("button", name="Save").click()
+    page.unroute("**/rpc.php")
+    return request.value.post_data_json["params"]
 
 
 def apply_via_ui(page: Page, timeout_s: int = 240) -> None:
