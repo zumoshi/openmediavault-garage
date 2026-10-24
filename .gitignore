@@ -4,3 +4,6 @@ tree/usr/share/openmediavault/garage/bin/garage-webui
 tree/usr/share/doc/openmediavault-garage/changelog.Debian.gz
 vendor/
 .phpunit.cache/
+.venv/
+.pytest_cache/
+__pycache__/
