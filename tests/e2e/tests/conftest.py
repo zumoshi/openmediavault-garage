@@ -7,6 +7,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from garage_tester import instance, ui
+from garage_tester.leaks import is_test_name
 from garage_tester.rpc import NEW_UUID, Rpc
 from garage_tester.settings import Settings
 from garage_tester.shares import Shares
@@ -115,13 +116,17 @@ def s3_setup(cfg, rpc, ssh):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def cleanup_stale(rpc):
-    """Remove gt-* instances a crashed earlier run may have left behind."""
-    for i in rpc.enumerate_instances():
-        if i["name"].startswith("gt-"):
-            rpc.delete_instance(i["uuid"])
-    rpc.apply(["garage"])
-    yield
+def cleanup_stale(cfg, ssh, rpc):
+    """Remove instances and shared folders a crashed earlier run left
+    behind."""
+    stale = [i["name"] for i in rpc.enumerate_instances()
+             if is_test_name(i["name"])]
+    for name in stale:
+        rpc.delete_instance(name)
+    if stale:
+        rpc.apply(["garage"])
+    shares = Shares(ssh, rpc, cfg.disk)
+    shares.delete([n for n in shares.names() if is_test_name(n)])
 
 
 @pytest.fixture()

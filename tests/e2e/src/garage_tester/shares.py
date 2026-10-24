@@ -37,13 +37,19 @@ class Shares:
         return name
 
     def cleanup(self):
-        for name in self._created:
-            share_uuid = self.uuid_by_name(name)
-            self.rpc.call("ShareMgmt", "delete",
-                          {"uuid": share_uuid, "recursive": True})
-        if self._created:
-            self.rpc.apply(["sharedfolders"])
+        self.delete(self._created)
         self._created.clear()
+
+    def delete(self, names: list[str]):
+        """Delete shared folders `names` with their content, and apply."""
+        for name in names:
+            self.rpc.call("ShareMgmt", "delete",
+                          {"uuid": self.uuid_by_name(name), "recursive": True})
+        if names:
+            self.rpc.apply(["sharedfolders"])
+
+    def names(self) -> list[str]:
+        return [s["name"] for s in self.ssh.confdb("conf.system.sharedfolder")]
 
     def _row(self, name: str) -> dict:
         return next(s for s in self.ssh.confdb("conf.system.sharedfolder")
