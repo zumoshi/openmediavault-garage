@@ -73,6 +73,19 @@ The package version comes from the top entry of `debian/changelog`.
 Needs `nfpm` and `curl`. The vendored webui binary is checksum-pinned in
 `checksums/` and verified at build time; CI enforces it.
 
+## Test
+
+```sh
+make unit           # PHPUnit in php:8.4-cli (Docker)
+make package-test   # builds dist/ if needed, then checks the deb
+make e2e            # Playwright suite against a real OMV host
+```
+
+`make unit` and `make package-test` need no VM. `make e2e` reads
+`OMV_HOST`, `OMV_SSH`, `OMV_ADMIN_PASSWORD` and `OMV_DISK` from the
+environment; see `tests/e2e/README.md`. Pass extra test-runner arguments
+with `ARGS`, for example `make package-test ARGS=--runxfail`.
+
 ## Layout
 
 - `tree/usr/share/openmediavault/datamodels/` - config + RPC schemas
