@@ -32,6 +32,8 @@ contents:
     dst: /srv
   - src: tree/var/www/openmediavault/
     dst: /var/www/openmediavault
+  - src: tree/usr/share/doc/openmediavault-garage/
+    dst: /usr/share/doc/openmediavault-garage
 
 scripts:
   postinstall: scripts/postinst
