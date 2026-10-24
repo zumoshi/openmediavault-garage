@@ -1,0 +1,2 @@
+# Built for omv-extras, not uploaded to Debian, so there is no ITP bug.
+openmediavault-garage: initial-upload-closes-no-bugs [usr/share/doc/openmediavault-garage/changelog.Debian.gz:1]

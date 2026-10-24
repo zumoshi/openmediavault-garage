@@ -35,6 +35,8 @@ contents:
     dst: /var/www/openmediavault
   - src: tree/usr/share/doc/openmediavault-garage/
     dst: /usr/share/doc/openmediavault-garage
+  - src: tree/usr/share/lintian/overrides/openmediavault-garage
+    dst: /usr/share/lintian/overrides/openmediavault-garage
 
 scripts:
   postinstall: scripts/postinst
