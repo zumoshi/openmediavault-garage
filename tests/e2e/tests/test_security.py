@@ -71,27 +71,27 @@ def test_webui_direct_access_shows_own_login(fresh_page, cfg, webui_instance):
         f"unauthenticated visitor sees a live dashboard: {body[:200]}"
 
 
-def test_getwebuilogin_rpc_requires_session(cfg, webui_instance):
-    """Garage.getWebUiLogin must not hand out credentials to an
-    unauthenticated caller."""
-    name, _ = webui_instance
-    status, body = _post_rpc(cfg, "Garage", "getWebUiLogin", {"name": name})
-    compact = body.replace(" ", "")
-    leaked = '"password":"' in compact and '"password":""' not in compact
-    assert status != 200 or not leaked, \
-        f"getWebUiLogin leaked credentials without a session ({status}): {body[:200]}"
-
-
-def test_unauthenticated_write_rpc_rejected(cfg):
+def _assert_session_rejected(status: int, body: str) -> None:
     """OMV's rpc.php must turn the call away before it reaches the plugin.
     A crash inside the plugin would also be non-200, so assert the session
     error itself."""
-    status, body = _post_rpc(cfg, "Garage", "setInstance",
-                             {"uuid": "x", "name": "nope"})
     error = json.loads(body).get("error") or {}
     assert (status, error.get("message")) == \
         (401, "Session not authenticated."), \
         f"expected OMV's session error, got {status}: {body[:300]}"
+
+
+def test_getwebuilogin_rpc_requires_session(cfg, webui_instance):
+    """Garage.getWebUiLogin hands out the web UI password, so it must not
+    answer an unauthenticated caller."""
+    name, _ = webui_instance
+    _assert_session_rejected(
+        *_post_rpc(cfg, "Garage", "getWebUiLogin", {"name": name}))
+
+
+def test_unauthenticated_write_rpc_rejected(cfg):
+    _assert_session_rejected(
+        *_post_rpc(cfg, "Garage", "setInstance", {"uuid": "x", "name": "nope"}))
 
 
 def test_omv_wrong_password_rejected(fresh_page, cfg):

@@ -68,7 +68,7 @@ def test_webui_created_bucket_imported(ssh, rpc, make_instance):
     aliased = _garage_json(ssh, name, "CreateBucket", {"name": "gt-aliased"})
     _garage_json(ssh, name, "AddBucketAlias",
                  {"bucketId": aliased["id"], "globalAlias": "gt-aliased"})
-    bare = _garage_json(ssh, name, "CreateBucket", {"name": "gt-bare"})
+    _garage_json(ssh, name, "CreateBucket", {"name": "gt-bare"})
 
     listing = rpc.call("Garage", "getBucketList",
                        {"start": 0, "limit": -1, "instanceuuid": uuid})
