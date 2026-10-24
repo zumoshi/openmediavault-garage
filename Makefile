@@ -2,7 +2,7 @@ PHP_IMAGE := php:8.4.27-cli@sha256:debadc2e36b857657846e2e952cbaf52702e55482dd3c
 COMPOSER_IMAGE := composer:2.10.3@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc
 DOCKER_RUN := docker run --rm -u $(shell id -u):$(shell id -g) -v $(CURDIR):/app -w /app
 
-.PHONY: unit package-test
+.PHONY: unit package-test e2e
 
 unit: vendor/composer/installed.json
 	$(DOCKER_RUN) $(PHP_IMAGE) vendor/bin/phpunit $(ARGS)
@@ -18,3 +18,6 @@ dist/.built: build.sh nfpm.yaml debian/changelog $(wildcard $(shell git ls-files
 	rm -rf dist
 	./build.sh
 	touch $@
+
+e2e:
+	cd tests/e2e && uv run playwright install chromium && uv run pytest $(ARGS)
