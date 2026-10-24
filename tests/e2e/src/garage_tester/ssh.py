@@ -1,6 +1,7 @@
 """SSH access to the OMV host. Delegates to the local ssh binary so
 ~/.ssh/config, agents and jump hosts all keep working."""
 
+import json
 import subprocess
 
 
@@ -18,6 +19,9 @@ class Ssh:
 
     def out(self, cmd: str) -> str:
         return self.run(cmd)[1].strip()
+
+    def confdb(self, key: str):
+        return json.loads(self.out(f"omv-confdbadm read {shquote(key)}"))
 
     def read_file(self, path: str) -> str:
         rc, out = self.run(f"cat {shquote(path)}", check=False)

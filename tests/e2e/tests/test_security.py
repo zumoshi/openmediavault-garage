@@ -10,9 +10,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from garage_tester import instance, s3, ui
-from garage_tester.instance import instance_ports
-
-NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
+from garage_tester.rpc import NEW_UUID
 
 
 @pytest.fixture(scope="module")
@@ -104,13 +102,13 @@ def test_omv_wrong_password_rejected(fresh_page, cfg):
 
 def test_s3_invalid_key_denied(cfg, rpc, make_instance):
     name, _ = make_instance()
-    port = instance.instance_ports(rpc, name)["s3"]
+    port = instance.instance_row(rpc, name)["s3port"]
     s3.must_be_denied(f"http://{cfg.host}:{port}")
 
 
 def test_s3_unmapped_key_denied(cfg, rpc, make_instance):
     name, info = make_instance()
-    s3_port = instance.instance_ports(rpc, name)["s3"]
+    s3_port = instance.instance_row(rpc, name)["s3port"]
     bucket = f"gt-{secrets.token_hex(3)}"
     rpc.call("Garage", "setBucket", {
         "uuid": NEW_UUID, "instanceuuid": info["uuid"], "name": bucket,
@@ -131,9 +129,9 @@ def test_s3_unmapped_key_denied(cfg, rpc, make_instance):
 def test_admin_and_webui_ports_not_reachable_from_lan(cfg, rpc,
                                                       make_instance):
     name, info = make_instance(webui=True)
-    ports = instance.instance_ports(rpc, name)
-    webui_port = instance.instance_row(rpc, name)["webuiport"]
-    for label, port in (("admin", ports["admin"]), ("webui", webui_port)):
+    row = instance.instance_row(rpc, name)
+    for label, port in (("admin", row["adminport"]),
+                        ("webui", row["webuiport"])):
         try:
             urllib.request.urlopen(f"http://{cfg.host}:{port}/", timeout=5)
         except (urllib.error.URLError, OSError):

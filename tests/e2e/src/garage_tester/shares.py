@@ -1,12 +1,9 @@
 """Shared folder setup on the disk given via OMV_DISK."""
 
-import json
 import shlex
 
-from .rpc import Rpc
+from .rpc import NEW_UUID, Rpc
 from .ssh import Ssh
-
-NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
 
 
 class Shares:
@@ -17,9 +14,7 @@ class Shares:
         self._created: list[str] = []
 
     def _mount(self) -> dict:
-        mounts = json.loads(self.ssh.out(
-            "omv-confdbadm read conf.system.filesystem.mountpoint"))
-        for m in mounts:
+        for m in self.ssh.confdb("conf.system.filesystem.mountpoint"):
             device = self.ssh.out(f"findmnt -n -o SOURCE {shlex.quote(m['dir'])}")
             if self.disk in device or self.disk in m.get("fsname", ""):
                 return m
@@ -50,8 +45,17 @@ class Shares:
             self.rpc.apply(["sharedfolders"])
         self._created.clear()
 
+    def _row(self, name: str) -> dict:
+        return next(s for s in self.ssh.confdb("conf.system.sharedfolder")
+                    if s["name"] == name)
+
     def uuid_by_name(self, name: str) -> str:
-        shares = json.loads(self.ssh.out(
-            "omv-confdbadm read conf.system.sharedfolder"))
-        return next(s["uuid"] for s in shares if s["name"] == name)
+        return self._row(name)["uuid"]
+
+    def path(self, name: str) -> str:
+        """Absolute path of shared folder `name`, without a trailing slash."""
+        share = self._row(name)
+        mount = next(m for m in self.ssh.confdb("conf.system.filesystem.mountpoint")
+                     if m["uuid"] == share["mntentref"])
+        return mount["dir"].rstrip("/") + "/" + share["reldirpath"].strip("/")
 

@@ -6,6 +6,10 @@ import json
 from .ssh import Ssh, shquote
 
 
+# OMV's placeholder uuid that tells a set RPC to create a new object.
+NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
+
+
 class RpcError(Exception):
     pass
 

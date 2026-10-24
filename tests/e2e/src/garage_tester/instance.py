@@ -3,9 +3,7 @@
 import tomllib
 import time
 
-from .rpc import Rpc
-
-NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
+from .rpc import NEW_UUID, Rpc
 
 
 def setup_bucket_and_key(rpc: Rpc, instance_uuid: str,
@@ -49,33 +47,6 @@ def wait_health(ssh, admin_port: int, timeout_s: int = 120) -> None:
             return
         time.sleep(3)
     raise AssertionError(f"admin health on {admin_port} never returned 200")
-
-
-def instance_ports(rpc: Rpc, name: str) -> dict:
-    listing = rpc.call("Garage", "getInstanceList",
-                       {"start": 0, "limit": -1})
-    row = next(i for i in listing["data"] if i["name"] == name)
-    return {"s3": row["s3port"], "rpc": row["rpcport"],
-            "admin": row["adminport"]}
-
-
-def instance_ports(rpc: Rpc, name: str) -> dict:
-    listing = rpc.call("Garage", "getInstanceList",
-                       {"start": 0, "limit": -1})
-    row = next(i for i in listing["data"] if i["name"] == name)
-    return {"s3": row["s3port"], "rpc": row["rpcport"],
-            "admin": row["adminport"]}
-
-
-def share_path(ssh, share_name: str) -> str:
-    import json
-    shares = json.loads(ssh.out(
-        "omv-confdbadm read conf.system.sharedfolder"))
-    share = next(s for s in shares if s["name"] == share_name)
-    mounts = json.loads(ssh.out(
-        "omv-confdbadm read conf.system.filesystem.mountpoint"))
-    mp = next(m for m in mounts if m["uuid"] == share["mntentref"])
-    return mp["dir"].rstrip("/") + "/" + share["reldirpath"].strip("/")
 
 
 def instance_row(rpc: Rpc, name: str) -> dict:

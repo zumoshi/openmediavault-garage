@@ -7,12 +7,10 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from garage_tester import instance, ui
-from garage_tester.rpc import Rpc
+from garage_tester.rpc import NEW_UUID, Rpc
 from garage_tester.settings import Settings
+from garage_tester.shares import Shares
 from garage_tester.ssh import Ssh
-
-NEW_UUID = "fa4b1c66-ef79-11e5-87a0-0002b3a176b4"
-
 
 @pytest.fixture(scope="session")
 def cfg() -> Settings:
@@ -47,7 +45,6 @@ def page(browser, cfg):
 
 @pytest.fixture(scope="session")
 def shares(rpc, ssh, cfg):
-    from garage_tester.shares import Shares
     obj = Shares(ssh, rpc, cfg.disk)
     yield obj
     obj.cleanup()
@@ -106,12 +103,12 @@ def make_instance(page, cfg, rpc, ssh, shares):
 def s3_setup(cfg, rpc, ssh):
     """Wire bucket + key + mapping for an instance and return the s3
     connection details."""
-    def _make(name: str, uuid: str, s3_port: int):
+    def _make(name: str, uuid: str):
         key_id, secret = instance.setup_bucket_and_key(
             rpc, uuid, f"gt-{name}", f"gt-{name}-key")
-        admin_port = instance.instance_ports(rpc, name)["admin"]
-        instance.wait_health(ssh, admin_port)
-        return {"endpoint": f"http://{cfg.host}:{s3_port}",
+        row = instance.instance_row(rpc, name)
+        instance.wait_health(ssh, row["adminport"])
+        return {"endpoint": f"http://{cfg.host}:{row['s3port']}",
                 "key_id": key_id, "secret": secret,
                 "bucket": f"gt-{name}"}
     yield _make
