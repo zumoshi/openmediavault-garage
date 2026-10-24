@@ -1,3 +1,4 @@
 dist/
 tree/usr/share/openmediavault/garage/bin/garage-webui
 *.deb
+tree/usr/share/doc/openmediavault-garage/changelog.Debian.gz

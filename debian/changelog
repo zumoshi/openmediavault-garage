@@ -1,0 +1,12 @@
+openmediavault-garage (0.1.0-1) trixie; urgency=medium
+
+  * Initial release. OpenMediaVault 8 plugin for Garage, the S3-compatible
+    object storage, replacing the removed openmediavault-s3 plugin with
+    native, non-containerized garage@<name> instances.
+  * Manage multiple instances, each with datastores on shared folders,
+    buckets with quotas and website hosting, access keys, and key-to-bucket
+    permissions.
+  * Optional vendored garage-webui, disabled by default, reachable only
+    through the authenticated OMV web interface with one-click sign-in.
+
+ -- bor <me@bor691.ir>  Sat, 24 Oct 2026 16:45:57 +0000

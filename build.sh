@@ -4,8 +4,8 @@ set -eu
 usage() {
 	cat <<EOF
 Usage:
-  VERSION=8.0.1 [RELEASE=1] $0          build the plugin deb
-  VERSION=1.1.0 $0 record               pin the webui checksum
+  $0                                   build the plugin deb at the debian/changelog version
+  WEBUI_VERSION=1.1.0 $0 record        pin the webui checksum
 EOF
 	exit 2
 }
@@ -28,8 +28,13 @@ record)
 	echo "pinned checksums/webui-${WEBUI_VERSION}.amd64.sha256"
 	;;
 build)
-	VERSION=${VERSION:?VERSION required, e.g. 8.0.1}
-	RELEASE=${RELEASE:-1}
+	changelog_version=$(sed -n '1s/^openmediavault-garage (\(.*\)).*/\1/p' debian/changelog)
+	VERSION=${VERSION:-${changelog_version%-*}}
+	RELEASE=${RELEASE:-${changelog_version##*-}}
+	[ "${VERSION}-${RELEASE}" = "$changelog_version" ] || {
+		echo "debian/changelog is at ${changelog_version}; add an entry for ${VERSION}-${RELEASE}" >&2
+		exit 1
+	}
 	download_webui
 	sumfile="checksums/webui-${WEBUI_VERSION}.amd64.sha256"
 	[ -f "$sumfile" ] || {
@@ -42,6 +47,7 @@ build)
 		echo "webui checksum mismatch" >&2
 		exit 1
 	}
+	gzip -9nc debian/changelog >tree/usr/share/doc/openmediavault-garage/changelog.Debian.gz
 	mkdir -p dist
 	VERSION="$VERSION" RELEASE="$RELEASE" \
 		nfpm package -f nfpm.yaml -p deb \

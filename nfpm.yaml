@@ -1,6 +1,7 @@
 name: openmediavault-garage
 arch: all
 version: ${VERSION}
+release: ${RELEASE}
 section: net
 priority: optional
 maintainer: Garage OMV packaging <root@localhost>
