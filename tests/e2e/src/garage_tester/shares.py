@@ -64,4 +64,3 @@ class Shares:
         mount = next(m for m in self.ssh.confdb("conf.system.filesystem.mountpoint")
                      if m["uuid"] == share["mntentref"])
         return mount["dir"].rstrip("/") + "/" + share["reldirpath"].strip("/")
-
