@@ -85,9 +85,15 @@ def test_getwebuilogin_rpc_requires_session(cfg, webui_instance):
 
 
 def test_unauthenticated_write_rpc_rejected(cfg):
-    status, _ = _post_rpc(cfg, "Garage", "setInstance",
-                          {"uuid": "x", "name": "nope"})
-    assert status != 200, f"unauthenticated write accepted ({status})"
+    """OMV's rpc.php must turn the call away before it reaches the plugin.
+    A crash inside the plugin would also be non-200, so assert the session
+    error itself."""
+    status, body = _post_rpc(cfg, "Garage", "setInstance",
+                             {"uuid": "x", "name": "nope"})
+    error = json.loads(body).get("error") or {}
+    assert (status, error.get("message")) == \
+        (401, "Session not authenticated."), \
+        f"expected OMV's session error, got {status}: {body[:300]}"
 
 
 def test_omv_wrong_password_rejected(fresh_page, cfg):
