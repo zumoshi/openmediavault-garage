@@ -4,6 +4,7 @@
 import json
 import subprocess
 import time
+from contextlib import contextmanager
 
 
 class Ssh:
@@ -63,6 +64,24 @@ class Ssh:
     def port_listening(self, port: int) -> bool:
         rc, _ = self.run(f"ss -tln | grep -q ':{port} '", check=False)
         return rc == 0
+
+    @contextmanager
+    def listener(self, port: int):
+        """A process outside garage listening on 127.0.0.1:`port`."""
+        pid = self.out(
+            "setsid python3 -c 'import socket, time; s = socket.socket(); "
+            f's.bind(("127.0.0.1", {port})); s.listen(); time.sleep(3600)\' '
+            "</dev/null >/dev/null 2>&1 & echo $!")
+        try:
+            for _ in range(20):
+                if self.port_listening(port):
+                    break
+                time.sleep(0.5)
+            else:
+                raise RuntimeError(f"listener on {port} never came up")
+            yield port
+        finally:
+            self.run(f"kill {pid}", check=False)
 
 
 def shquote(s: str) -> str:

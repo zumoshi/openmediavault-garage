@@ -100,8 +100,7 @@ def test_disabled_instance(page, cfg, ssh, make_instance):
 def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
     name, info = make_instance(webui=True)
     storpath = shares.path(info["storage_share"])
-    assert ssh.run(f"getfacl -p {storpath} | grep -q user:garage",
-                   check=False)[0] == 0, "storage ACL not granted"
+    assert instance.garage_acl(ssh, storpath), "storage ACL not granted"
 
     ui.goto_instances(page, cfg.host)
     ui.delete_instance_via_ui(page, name)
@@ -113,8 +112,8 @@ def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
     assert not ssh.unit_active(f"omv-garage-webui@{name}")
     assert not ssh.file_exists(
         f"/etc/nginx/openmediavault-webgui.d/garage-webui-{name}.conf")
-    assert ssh.run(f"getfacl -p {storpath} | grep -q user:garage",
-                   check=False)[0] != 0, "storage ACL was not revoked"
+    assert not instance.garage_acl(ssh, storpath), \
+        "storage ACL was not revoked"
 
 
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason=(

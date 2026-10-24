@@ -128,19 +128,8 @@ def foreign_listener(ssh):
     """A process outside garage listening on a free loopback port."""
     while ssh.port_listening(port := 40000 + secrets.randbelow(10000)):
         pass
-    pid = ssh.out(
-        "setsid python3 -c 'import socket, time; s = socket.socket(); "
-        f's.bind(("127.0.0.1", {port})); s.listen(); time.sleep(3600)\' '
-        "</dev/null >/dev/null 2>&1 & echo $!")
-    try:
-        for _ in range(20):
-            if ssh.port_listening(port):
-                break
-        else:
-            raise RuntimeError(f"listener on {port} never came up")
+    with ssh.listener(port):
         yield port
-    finally:
-        ssh.run(f"kill {pid}", check=False)
 
 
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason=(

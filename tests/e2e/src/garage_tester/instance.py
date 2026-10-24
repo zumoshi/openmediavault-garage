@@ -1,9 +1,11 @@
 """Bucket, key and permission setup plus config-file assertions."""
 
+import json
 import tomllib
 import time
 
 from .rpc import NEW_UUID, Rpc
+from .ssh import shquote
 
 
 def setup_bucket_and_key(rpc: Rpc, instance_uuid: str,
@@ -53,3 +55,18 @@ def instance_row(rpc: Rpc, name: str) -> dict:
     listing = rpc.call("Garage", "getInstanceList",
                        {"start": 0, "limit": -1})
     return next(x for x in listing["data"] if x["name"] == name)
+
+
+def garage_json(ssh, name: str, endpoint: str, payload: dict | None = None):
+    """Call garage's admin API directly, the way the garage web UI does,
+    bypassing OMV."""
+    payload_part = f" {shquote(json.dumps(payload))}" if payload else ""
+    return json.loads(ssh.out(
+        f"/usr/bin/garage -c /etc/garage/{name}.toml json-api "
+        f"{endpoint}{payload_part}"))
+
+
+def garage_acl(ssh, path: str) -> bool:
+    """Whether `path` grants the garage user an ACL entry."""
+    return ssh.run(f"getfacl -p {shquote(path)} | grep -q user:garage",
+                   check=False)[0] == 0
