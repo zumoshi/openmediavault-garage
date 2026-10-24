@@ -16,7 +16,20 @@ The tests never install anything.
 - Extra datastores (two-entry `data_dir`).
 - Disabled instances.
 - Instance deletion through the UI with cleanup assertions, including
-  ACL revocation on the storage folder.
+  ACL revocation on the storage folder, and undoing a pending delete.
+- Editing an instance through the real edit form: a no-op edit, a
+  read-only name, and rejected renames, port conflicts and region values.
+- A storage shared folder whose path contains a space.
+- The web UI is reachable only with an OMV session.
+
+## Open bugs
+
+A test for a known, unfixed bug is marked
+`@pytest.mark.xfail(strict=True, raises=AssertionError, reason="REVIEW <id>: ...")`,
+naming its finding in the review. The suite stays green while the bug is
+open. A fix makes the test pass, and strict mode turns that XPASS into a
+failure until the fix also removes the marker. Run
+`uv run pytest --runxfail` to see what each open bug's test reports.
 
 Every advanced test validates the generated `/etc/garage/<name>.toml`
 over SSH and then talks to the running instance.
@@ -59,7 +72,7 @@ export OMV_DISK=loop                 # substring of the devicefile
 uv run pytest -q
 ```
 
-A full run takes about 12 minutes.
+A full run takes about 21 minutes.
 
 `OMV_DISK` is matched as a substring against the device files of mounted
 filesystems (e.g. `sda` matches `/dev/sda1`, `loop` matches `/dev/loop0`).
