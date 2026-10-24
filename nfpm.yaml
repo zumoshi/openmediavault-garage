@@ -1,9 +1,10 @@
 name: openmediavault-garage
 arch: all
 version: ${VERSION}
+release: ${RELEASE}
 section: net
 priority: optional
-maintainer: Garage OMV packaging <root@localhost>
+maintainer: bor <me@bor691.ir>
 description: |
   OpenMediaVault plugin for Garage, the S3-compatible self-hosted object
   storage. Manages multiple native Garage instances (no containers): each
@@ -32,6 +33,10 @@ contents:
     dst: /srv
   - src: tree/var/www/openmediavault/
     dst: /var/www/openmediavault
+  - src: tree/usr/share/doc/openmediavault-garage/
+    dst: /usr/share/doc/openmediavault-garage
+  - src: tree/usr/share/lintian/overrides/openmediavault-garage
+    dst: /usr/share/lintian/overrides/openmediavault-garage
 
 scripts:
   postinstall: scripts/postinst

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Plugin version, e.g. 8.0.1"
+        description: "Plugin version, e.g. 0.1.0; must match debian/changelog"
         required: true
 
 permissions:
