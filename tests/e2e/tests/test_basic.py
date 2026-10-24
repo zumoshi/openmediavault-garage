@@ -26,11 +26,10 @@ def test_instances_table_columns_render(page, cfg, ssh):
     pixels. The user experienced exactly that: a table with only Name
     visible. Every configured column must render with real width."""
     ui.goto_instances(page, cfg.host)
-    cells = page.locator("datatable-body-cell")
-    cells.first.wait_for(state="visible", timeout=20000)
-    n = cells.count()
-    assert n == 6, f"expected 6 rendered cells, got {n}"
-    widths = [cells.nth(i).evaluate("el => el.offsetWidth")
-              for i in range(n)]
-    assert all(w > 40 for w in widths), \
-        f"collapsed table columns: {widths}"
+    rows = page.locator("datatable-body-row")
+    rows.first.wait_for(state="visible", timeout=20000)
+    widths = rows.evaluate_all("""rows => rows.map(r =>
+        [...r.querySelectorAll('datatable-body-cell')].map(c => c.offsetWidth))""")
+    for row in widths:
+        assert len(row) == 6 and all(w > 40 for w in row), \
+            f"every row needs 6 cells wider than 40px, got widths {widths}"
