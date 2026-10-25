@@ -82,13 +82,15 @@
                 },
                 "s3region": {
                     "type": "string",
-                    "required": true
+                    "required": true,
+                    "pattern": "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
                 },
                 "s3rootdomain": {
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^(\\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$"
                 },
                 "webenable": {
                     "type": "boolean"
@@ -103,7 +105,8 @@
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^(\\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$"
                 },
                 "adminenable": {
                     "type": "boolean"
@@ -135,7 +138,8 @@
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^([0-9]+(\\.[0-9]+)? *[a-z]+ *)*$"
                 },
                 "metadatashareuuid": {
                     "type": "string"
@@ -170,13 +174,15 @@
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^([0-9]+|[0-9]+(\\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$"
                 },
                 "blockrambuffermax": {
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^([0-9]+|[0-9]+(\\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$"
                 },
                 "blockmaxconcurrentreads": {
                     "type": [
@@ -198,13 +204,15 @@
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "pattern": "^([0-9]+|[0-9]+(\\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$"
                 },
                 "webuienable": {
                     "type": "boolean"
                 },
                 "webuiuser": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._-]+$"
                 },
                 "storageshareuuid": {
                     "type": "string",

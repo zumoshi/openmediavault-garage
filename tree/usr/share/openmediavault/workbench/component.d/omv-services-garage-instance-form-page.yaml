@@ -117,6 +117,10 @@ data:
         label: _("Website root domain")
         hint: _("Optional. Buckets are served as <bucket>.<root domain>.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^(\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$'
+            errorData: _("A domain name, e.g. .s3.example.com.")
         modifiers:
           - type: visible
             constraint:
@@ -134,6 +138,11 @@ data:
         name: webuiuser
         label: _("Web UI user name")
         value: admin
+        validators:
+          required: true
+          pattern:
+            pattern: '^[A-Za-z0-9._-]+$'
+            errorData: _("Letters, digits, dots, dashes and underscores.")
         modifiers:
           - type: visible
             constraint:
@@ -150,11 +159,18 @@ data:
         value: garage
         validators:
           required: true
+          pattern:
+            pattern: '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$'
+            errorData: _("Letters, digits and dashes, e.g. garage or us-east-1.")
       - type: textInput
         name: s3rootdomain
         label: _("S3 root domain")
         hint: _("Optional. Enables vhost-style access, buckets served as <bucket>.<root domain>.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^(\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$'
+            errorData: _("A domain name, e.g. .s3.example.com.")
       - type: divider
         title: _("Advanced")
       - type: checkbox
@@ -208,8 +224,12 @@ data:
       - type: textInput
         name: snapshotinterval
         label: _("Automatic snapshot interval")
-        hint: _("Empty to disable, otherwise a systemd time span, e.g. 6h or 1d.")
+        hint: _("Empty to disable, otherwise a time span, e.g. 6h or 1d.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^([0-9]+(\.[0-9]+)? *[a-z]+ *)*$'
+            errorData: _("A time span, e.g. 6h, 1d or 1d 12h.")
       - type: select
         name: dbengine
         label: _("Database engine")
@@ -225,6 +245,10 @@ data:
         label: _("LMDB map size")
         hint: _("Optional capacity string, e.g. 1TiB.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^([0-9]+|[0-9]+(\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$'
+            errorData: _("A number with an optional unit, e.g. 1MiB or 512 KiB.")
         modifiers:
           - type: visible
             constraint:
@@ -285,11 +309,19 @@ data:
         label: _("Block size")
         hint: _("Optional capacity string, e.g. 1MiB. Only affects new uploads.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^([0-9]+|[0-9]+(\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$'
+            errorData: _("A number with an optional unit, e.g. 1MiB or 512 KiB.")
       - type: textInput
         name: blockrambuffermax
         label: _("Block RAM buffer max")
         hint: _("Optional capacity string, e.g. 256MiB.")
         value: ""
+        validators:
+          pattern:
+            pattern: '^([0-9]+|[0-9]+(\.[0-9]+)? *([kKmMgGtTpPeE][iI]?[bB]?|[bB]))?$'
+            errorData: _("A number with an optional unit, e.g. 1MiB or 512 KiB.")
       - type: numberInput
         name: blockmaxconcurrentreads
         label: _("Max concurrent block reads")

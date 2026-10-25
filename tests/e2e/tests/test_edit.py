@@ -141,9 +141,6 @@ def test_edit_rejects_port_of_other_service(page, cfg, rpc, make_instance,
                           "which another process is listening on")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.8: s3region goes into the TOML unescaped and the datamodel "
-    "accepts a double quote"))
 def test_region_with_double_quote_rejected(page, cfg, rpc, make_instance):
     name, info = make_instance()
     params = _form_params(page, cfg, name, info["uuid"])
