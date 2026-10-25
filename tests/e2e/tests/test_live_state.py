@@ -3,6 +3,7 @@ made outside OMV, their usage, and names that only need to be unique
 per instance."""
 
 import secrets
+import time
 
 import pytest
 
@@ -119,3 +120,38 @@ def test_aliasless_bucket_shows_usage(cfg, ssh, rpc, make_instance,
         (row.get("objects"), row.get("bytes")) == (1, len(payload)), (
             f"getBucketList shows alias-less bucket {bucket['id'][:12]} as "
             f"{shown}, garage reports 1 object of {len(payload)} bytes")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "PLAN 3.3: list RPCs of a stopped instance show stale confdb rows "
+    "instead of saying the instance is not running"))
+def test_stopped_instance_rpcs_fail_fast(rpc, make_instance):
+    name, info = make_instance(enabled=False)
+    uuid = info["uuid"]
+    listing = {"start": 0, "limit": -1, "instanceuuid": uuid}
+    calls = {
+        "getBucketList": listing,
+        "getKeyList": listing,
+        "getMappingList": listing,
+        "setBucket": {"instanceuuid": uuid, "id": "", "name": "gt-stopped",
+                      "maxsize": 0, "maxobjects": 0, "website": False,
+                      "indexdoc": "", "errordoc": ""},
+        "setKey": {"instanceuuid": uuid, "id": "", "name": "gt-stopped"},
+        "setMapping": {"instanceuuid": uuid, "keyid": "GK0", "bucketid": "0",
+                       "allowread": True, "allowwrite": False,
+                       "allowowner": False},
+    }
+    answers = {}
+    for method, params in calls.items():
+        started = time.monotonic()
+        try:
+            rpc.call("Garage", method, params)
+            message = "succeeded"
+        except RpcError as e:
+            message = str(e)
+        answers[method] = (message, round(time.monotonic() - started, 1))
+    wrong = {m: a for m, a in answers.items()
+             if f"'{name}' is not running" not in a[0] or a[1] > 10}
+    assert not wrong, (
+        f"on stopped instance {name}, these did not fail within 10 s "
+        f"saying it is not running (message, seconds): {wrong}")
