@@ -1,6 +1,7 @@
 """Rejection paths. Every test here asserts that access is DENIED or that
 a degraded state is visible, from outside the OMV session."""
 
+import http.cookiejar
 import json
 import re
 import secrets
@@ -112,6 +113,43 @@ def test_webui_api_requires_omv_session(cfg, ssh, webui_instance):
     assert status in (401, 403), (
         f"GET {url} with a web UI cookie but no OMV session got {status}: "
         f"{body[:200]}")
+
+
+@pytest.fixture(scope="module")
+def non_admin_cookie(cfg, rpc):
+    """The session cookie of a throwaway OMV user without the administrator
+    role, signed in through rpc.php like the workbench does."""
+    name, password = f"gt{secrets.token_hex(3)}", secrets.token_hex(12)
+    rpc.call("UserMgmt", "setUser", {
+        "name": name, "groups": ["users"], "password": password,
+        "email": "", "disallowusermod": False, "sshpubkeys": []})
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    req = urllib.request.Request(
+        f"http://{cfg.host}/rpc.php",
+        data=json.dumps({"service": "Session", "method": "login",
+                         "params": {"username": name,
+                                    "password": password}}).encode(),
+        headers={"Content-Type": "application/json"}, method="POST")
+    with opener.open(req, timeout=15) as r:
+        login = json.load(r)
+    assert (login["response"] or {}).get("status") == "authenticated", \
+        f"non-admin OMV login failed: {login}"
+    yield "; ".join(f"{c.name}={c.value}" for c in jar)
+    rpc.call("UserMgmt", "deleteUser", {"name": name})
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.10: nginx proxies /garage-webui-<name>/ to any caller, so an "
+    "OMV session without the administrator role reaches the web UI too"))
+@pytest.mark.parametrize("path", ["", "api/buckets"])
+def test_webui_rejects_non_admin_omv_session(cfg, webui_instance,
+                                             non_admin_cookie, path):
+    name, _ = webui_instance
+    url = f"http://{cfg.host}/garage-webui-{name}/{path}"
+    status, body = _get(url, cookie=non_admin_cookie)
+    assert status == 403, \
+        f"GET {url} with a non-admin OMV session got {status}: {body[:200]}"
 
 
 def _assert_session_rejected(status: int, body: str) -> None:

@@ -1,5 +1,5 @@
-"""What the suite owns on the box. Every instance, shared folder and
-filesystem it creates is named gt<6 hex>, optionally followed by a suffix
+"""What the suite owns on the box. Every instance, shared folder,
+filesystem and user it creates is named gt<6 hex>, optionally followed by a suffix
 letter."""
 
 import re
@@ -22,6 +22,12 @@ INSTANCE_FILES = (
 )
 
 
+def users(ssh) -> list[str]:
+    """The suite's OMV user accounts."""
+    return [u for u in ssh.out("getent passwd | cut -d: -f1").split()
+            if is_test_name(u)]
+
+
 def leftovers(ssh) -> list[str]:
     """Everything of the suite's that is still on the box."""
     found = [f"instance {i['name']}"
@@ -40,6 +46,7 @@ def leftovers(ssh) -> list[str]:
         unit, _load, active, sub = line.split()[:4]
         if active != "inactive" and is_test_name(unit.split("@", 1)[1]):
             found.append(f"unit {unit} ({active}/{sub})")
+    found += [f"user {name}" for name in users(ssh)]
     found += [f"filesystem {name}" for name in sorted(filesystems.names(ssh))
               if is_test_name(name)]
     return found
