@@ -27,6 +27,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		"adminport" => 3903,
 		"webuiport" => 3910
 	];
+	// Generated on create, never taken from params. Only renewWebUiPassword
+	// rotates the web UI password afterwards.
+	private const SERVER_OWNED = ["rpcsecret", "admintoken", "webuipassword",
+		"webuipasswordhash", "webuiport"];
 
 	public function getName()
 	{
@@ -157,12 +161,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				"blockmaxconcurrentreads" => null,
 				"blockmaxconcurrentwrites" => null,
 				"lmdbmapsize" => "",
-				"rpcsecret" => "",
-				"admintoken" => "",
 				"webuienable" => false,
-				"webuiport" => $ports["webuiport"],
-				"webuiuser" => "admin",
-				"webuipassword" => ""
+				"webuiuser" => "admin"
 			];
 			return $assoc;
 		}
@@ -253,40 +253,32 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$db = \OMV\Config\Database::getInstance();
 		$newUuid = \OMV\Environment::get("OMV_CONFIGOBJECT_NEW_UUID");
 		$isNew = ($params["uuid"] === $newUuid);
+		$params = array_diff_key($params, array_flip(self::SERVER_OWNED));
 
 		if ($isNew) {
 			// Silently resolve duplicate ports with the next free port. The
 			// create dialog pre-suggests unused ports, but a stale page or a
 			// race with another creation must not block a plain "next-next"
-			// workflow. Fields the form does not post (the web UI port is
-			// auto-assigned) fall back to a suggestion instead of 0.
+			// workflow.
 			$suggested = $this->computeSuggestedPorts();
 			$used = array_merge(
 				$this->collectUsedPorts($db, null),
 				$this->collectListeningPorts()
 			);
 			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
-				$port = isset($params[$key]) && $params[$key] !== "" &&
-					!is_null($params[$key])
-					? intval($params[$key]) : $suggested[$key];
+				$port = intval($params[$key] ?? $suggested[$key]);
 				while (in_array($port, $used)) {
 					$port++;
 				}
 				$params[$key] = $port;
 				$used[] = $port;
 			}
-			// Secrets and credentials.
-			if (empty($params["rpcsecret"])) {
-				$params["rpcsecret"] = $this->generateSecret();
-			}
-			if (empty($params["admintoken"])) {
-				$params["admintoken"] = $this->generateSecret();
-			}
-			if (empty($params["webuipassword"])) {
-				$params["webuipassword"] = $this->generatePassword();
-			}
+			$params["rpcsecret"] = $this->generateSecret();
+			$params["admintoken"] = $this->generateSecret();
+			$params["webuipassword"] = $this->generatePassword();
 			$params["webuipasswordhash"] =
 				password_hash($params["webuipassword"], PASSWORD_BCRYPT);
+			$object = new \OMV\Config\ConfigObject("conf.service.garage.instance");
 		} else {
 			// On edit, ports must not collide with other instances. Explicit
 			// conflicts are reported, not silently resolved. Fields the form
@@ -303,44 +295,38 @@ class OMVRpcServiceGarage extends ServiceAbstract
 						$params[$key]));
 				}
 			}
-			// A blanked secret would render an unusable instance; regenerate
-			// instead of persisting the empty value.
-			if (strlen($params["rpcsecret"] ?? "") !== 64) {
-				$params["rpcsecret"] = $this->generateSecret();
-			}
-			if (strlen($params["admintoken"] ?? "") !== 64) {
-				$params["admintoken"] = $this->generateSecret();
-			}
-			// Heal a web UI credential that was lost outside this RPC (both
-			// the password and its hash empty) without touching healthy ones.
-			$existing = $db->get("conf.service.garage.instance", $params["uuid"]);
-			if (strlen($existing->get("webuipassword") ?? "") === 0 &&
-				strlen($existing->get("webuipasswordhash") ?? "") === 0) {
-				$params["webuipassword"] = $this->generatePassword();
-				$params["webuipasswordhash"] =
-					password_hash($params["webuipassword"], PASSWORD_BCRYPT);
-			}
+			$object = $db->get("conf.service.garage.instance", $params["uuid"]);
 		}
 
-		if (!empty($params["webuienable"]) && empty($params["adminenable"])) {
+		// Optional tuning fields fall back to the Garage defaults.
+		foreach (["blockmaxconcurrentreads" => 16,
+			"blockmaxconcurrentwrites" => 3] as $field => $fallback) {
+			if (array_key_exists($field, $params) && is_null($params[$field])) {
+				$params[$field] = $fallback;
+			}
+		}
+		$object->setAssoc($params);
+
+		if ($object->get("webuienable") && !$object->get("adminenable")) {
 			throw new \OMV\Exception(
 				gettext("The web UI requires the admin API to be enabled."));
 		}
 
 		// Storage layout. The storage folder holds the data and, unless a
 		// separate metadata folder is configured, the metadata database.
-		if (strlen($params["storageshareuuid"] ?? "") !== 36) {
+		$storage = $object->get("storageshareuuid");
+		if (strlen($storage) !== 36) {
 			throw new \OMV\Exception(
 				gettext("Please select a storage shared folder."));
 		}
-		if (!empty($params["storagesplit"]) &&
-			strlen($params["metadatashareuuid"] ?? "") !== 36) {
+		if ($object->get("storagesplit") &&
+			strlen($object->get("metadatashareuuid")) !== 36) {
 			throw new \OMV\Exception(
 				gettext("Please select a metadata shared folder."));
 		}
 		$datastores = $db->get("conf.service.garage.datastore");
 		foreach ($datastores as $dsv) {
-			if ($dsv->get("shareuuid") === $params["storageshareuuid"]) {
+			if ($dsv->get("shareuuid") === $storage) {
 				throw new \OMV\Exception(
 					gettext("The storage shared folder is already used as a datastore."));
 			}
@@ -348,21 +334,12 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$instances = $db->get("conf.service.garage.instance");
 		foreach ($instances as $objectv) {
 			if ($objectv->get("uuid") !== $params["uuid"] &&
-				$objectv->get("storageshareuuid") === $params["storageshareuuid"]) {
+				$objectv->get("storageshareuuid") === $storage) {
 				throw new \OMV\Exception(
 					gettext("The storage shared folder is already used by another Garage instance."));
 			}
 		}
 
-		// Optional tuning fields fall back to the Garage defaults.
-		foreach (["blockmaxconcurrentreads" => 16,
-			"blockmaxconcurrentwrites" => 3] as $field => $fallback) {
-			if (is_null($params[$field])) {
-				$params[$field] = $fallback;
-			}
-		}
-		$object = new \OMV\Config\ConfigObject("conf.service.garage.instance");
-		$object->setAssoc($params);
 		if ($isNew) {
 			$db->assertIsUnique($object, "name");
 		}

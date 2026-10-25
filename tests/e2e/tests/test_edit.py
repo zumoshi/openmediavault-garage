@@ -49,9 +49,6 @@ def _abbrev(value):
         else value
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.1: setInstance stores only the posted fields, so a no-op edit "
-    "wipes or rotates every field the form does not render"))
 def test_noop_edit_keeps_server_owned_fields(page, cfg, ssh, make_instance):
     name, info = make_instance(webui=True)
     before = _confdb_instance(ssh, info["uuid"])

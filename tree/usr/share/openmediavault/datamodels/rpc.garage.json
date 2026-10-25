@@ -203,19 +203,8 @@
                 "webuienable": {
                     "type": "boolean"
                 },
-                "webuiport": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 65535
-                },
                 "webuiuser": {
                     "type": "string"
-                },
-                "webuipassword": {
-                    "type": [
-                        "string",
-                        "null"
-                    ]
                 },
                 "storageshareuuid": {
                     "type": "string",
