@@ -108,27 +108,33 @@ def test_webui_api_requires_omv_session(cfg, ssh, webui_instance):
         f"{body[:200]}")
 
 
-@pytest.fixture(scope="module")
-def non_admin_cookie(cfg, rpc):
-    """The session cookie of a throwaway OMV user without the administrator
-    role, signed in through rpc.php like the workbench does."""
-    name, password = f"gt{secrets.token_hex(3)}", secrets.token_hex(12)
-    rpc.call("UserMgmt", "setUser", {
-        "name": name, "groups": ["users"], "password": password,
-        "email": "", "disallowusermod": False, "sshpubkeys": []})
+def _omv_login(cfg, username: str, password: str) -> str:
+    """Sign in through rpc.php like the workbench does and return the OMV
+    session cookie."""
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
     req = urllib.request.Request(
         f"http://{cfg.host}/rpc.php",
         data=json.dumps({"service": "Session", "method": "login",
-                         "params": {"username": name,
+                         "params": {"username": username,
                                     "password": password}}).encode(),
         headers={"Content-Type": "application/json"}, method="POST")
     with opener.open(req, timeout=15) as r:
         login = json.load(r)
     assert (login["response"] or {}).get("status") == "authenticated", \
-        f"non-admin OMV login failed: {login}"
-    yield "; ".join(f"{c.name}={c.value}" for c in jar)
+        f"OMV login of {username} failed: {login}"
+    return "; ".join(f"{c.name}={c.value}" for c in jar)
+
+
+@pytest.fixture(scope="module")
+def non_admin_cookie(cfg, rpc):
+    """The session cookie of a throwaway OMV user without the administrator
+    role."""
+    name, password = f"gt{secrets.token_hex(3)}", secrets.token_hex(12)
+    rpc.call("UserMgmt", "setUser", {
+        "name": name, "groups": ["users"], "password": password,
+        "email": "", "disallowusermod": False, "sshpubkeys": []})
+    yield _omv_login(cfg, name, password)
     rpc.call("UserMgmt", "deleteUser", {"name": name})
 
 
@@ -140,6 +146,60 @@ def test_webui_rejects_non_admin_omv_session(cfg, webui_instance,
     status, body = _get(url, cookie=non_admin_cookie)
     assert status == 403, \
         f"GET {url} with a non-admin OMV session got {status}: {body[:200]}"
+
+
+SESSIONS = "/run/openmediavault/sessions"
+
+
+def _session_file(cookie: str) -> str:
+    sid = re.search(r"OPENMEDIAVAULT-SESSIONID=(\w+)", cookie).group(1)
+    return f"{SESSIONS}/sess_{sid}"
+
+
+def _lastaccess(ssh, cookie: str) -> int:
+    data = ssh.read_file(_session_file(cookie))
+    return int(re.search(r"lastaccess\|i:(\d+);", data).group(1))
+
+
+def _set_lastaccess(ssh, cookie: str, when: int) -> None:
+    """Make the OMV session look idle since `when`, in place so the file
+    keeps its owner."""
+    path = shquote(_session_file(cookie))
+    ssh.out(f"data=$(sed 's/lastaccess|i:[0-9]*;/lastaccess|i:{when};/' "
+            f"{path}) && printf %s \"$data\" > {path}")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "web UI requests do not refresh the OMV session yet"))
+def test_webui_use_keeps_omv_session_alive(cfg, ssh, webui_instance,
+                                           non_admin_cookie):
+    """An admin's web UI request refreshes the OMV session's last access,
+    as every rpc.php call does, so a web UI in use outlives the idle
+    timeout. An expired session stays expired, a non-admin session is not
+    refreshed, and a request without a cookie creates no session."""
+    name, _ = webui_instance
+    url = f"http://{cfg.host}/garage-webui-{name}/"
+    timeout_s = ssh.confdb("conf.webadmin")["timeout"] * 60
+    admin = _omv_login(cfg, "admin", cfg.admin_password)
+
+    now = int(ssh.out("date +%s"))
+    idle = now - timeout_s // 2
+    _set_lastaccess(ssh, admin, idle)
+    _set_lastaccess(ssh, non_admin_cookie, idle)
+    sessions = ssh.out(f"ls {SESSIONS} | wc -l")
+    statuses = (_get(url, admin)[0], _get(url, non_admin_cookie)[0], _get(url)[0])
+    assert statuses == (200, 403, 401), "(admin, non-admin, no cookie)"
+    assert _lastaccess(ssh, admin) >= now, \
+        f"web UI use left the admin session idle since {now - idle}s"
+    assert _lastaccess(ssh, non_admin_cookie) == idle, \
+        "web UI request refreshed a non-admin session"
+    assert ssh.out(f"ls {SESSIONS} | wc -l") == sessions, \
+        "a request without a cookie created a session"
+
+    expired = now - timeout_s - 60
+    _set_lastaccess(ssh, admin, expired)
+    assert (_get(url, admin)[0], _lastaccess(ssh, admin)) == (401, expired), \
+        "an expired session was let in or revived"
 
 
 def _assert_session_rejected(status: int, body: str) -> None:
