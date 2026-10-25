@@ -264,6 +264,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		} else {
 			// On edit, a taken port is reported, not silently resolved.
 			$object = $db->get("conf.service.garage.instance", $params["uuid"]);
+			if ($params["name"] !== $object->get("name")) {
+				throw new \OMV\Exception(
+					gettext("The name of a Garage instance cannot be changed."));
+			}
 			$stored = $this->instancePorts($object);
 			$ports = array_merge($stored,
 				array_intersect_key($params, self::DEFAULT_PORTS));
