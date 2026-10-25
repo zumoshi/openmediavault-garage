@@ -4,35 +4,24 @@ import json
 import tomllib
 import time
 
-from .rpc import NEW_UUID, Rpc
+from .rpc import Rpc
 from .ssh import shquote
 
 
 def setup_bucket_and_key(rpc: Rpc, instance_uuid: str,
                          bucket: str, key_name: str) -> tuple[str, str]:
-    """Create bucket, key and an owner mapping. Returns (key_id, secret)."""
-    rpc.call("Garage", "setBucket", {
-        "uuid": NEW_UUID, "instanceuuid": instance_uuid, "name": bucket,
+    """Create bucket, key and an owner permission. Returns (key_id, secret)."""
+    bucket_id = rpc.call("Garage", "setBucket", {
+        "instanceuuid": instance_uuid, "id": "", "name": bucket,
         "maxsize": 0, "maxobjects": 0, "website": False,
-        "indexdoc": "index.html", "errordoc": ""})
+        "indexdoc": "index.html", "errordoc": ""})["id"]
     key = rpc.call("Garage", "setKey", {
-        "uuid": NEW_UUID, "instanceuuid": instance_uuid,
-        "name": key_name, "keyid": "", "secret": ""})
-
-    def find_uuid(method: str, row_name: str) -> str:
-        listing = rpc.call("Garage", method, {"start": 0, "limit": -1,
-                                    "instanceuuid": instance_uuid})
-        for row in listing["data"]:
-            if row["name"] == row_name:
-                return row["uuid"]
-        raise AssertionError(f"{method}: row {row_name!r} not found")
-
+        "instanceuuid": instance_uuid, "id": "", "name": key_name})
     rpc.call("Garage", "setMapping", {
-        "uuid": NEW_UUID, "instanceuuid": instance_uuid,
-        "keyuuid": find_uuid("getKeyList", key_name),
-        "bucketuuid": find_uuid("getBucketList", bucket),
+        "instanceuuid": instance_uuid, "keyid": key["id"],
+        "bucketid": bucket_id,
         "allowread": True, "allowwrite": True, "allowowner": True})
-    return key["keyid"], key["secret"]
+    return key["id"], key["secret"]
 
 
 def read_instance_toml(ssh, name: str) -> dict:

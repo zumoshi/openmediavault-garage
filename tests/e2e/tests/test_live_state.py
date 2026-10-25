@@ -5,8 +5,6 @@ per instance."""
 import secrets
 import time
 
-import pytest
-
 from garage_tester import instance, s3, ui
 from garage_tester.instance import garage_json
 from garage_tester.rpc import RpcError
@@ -17,7 +15,7 @@ LISTS = ["getBucketList", "getKeyList", "getMappingList"]
 def _key_rows(rpc, uuid: str, keyid: str) -> list[dict]:
     listing = rpc.call("Garage", "getKeyList",
                        {"start": 0, "limit": -1, "instanceuuid": uuid})
-    return [k for k in listing["data"] if k["keyid"] == keyid]
+    return [k for k in listing["data"] if k["id"] == keyid]
 
 
 def _rpc_errors(bodies: dict[str, dict]) -> dict[str, str]:
@@ -32,10 +30,6 @@ def _webui_made_key(ssh, name: str) -> str:
         "accessKeyId"]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.3: every tab's list RPC imports garage's state into confdb, "
-    "and the tabs load at once, so a web UI-made key is imported several "
-    "times"))
 def test_details_page_imports_webui_key_once(page, cfg, ssh, rpc,
                                              make_instance):
     name, info = make_instance()
@@ -50,9 +44,6 @@ def test_details_page_imports_webui_key_once(page, cfg, ssh, rpc,
         f"for key {keyid} (want 1); list RPC errors: {errors}")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.3: concurrent list RPCs race on config.xml: duplicate key "
-    "rows, and sometimes 'Document is empty'"))
 def test_concurrent_list_rpcs(page, ssh, make_instance):
     name, info = make_instance()
     keyid = _webui_made_key(ssh, name)
@@ -63,15 +54,12 @@ def test_concurrent_list_rpcs(page, ssh, make_instance):
         "start": 0, "limit": -1, "instanceuuid": info["uuid"]})
 
     errors = _rpc_errors(bodies)
-    keyids = [k["keyid"] for k in after["getKeyList"]["response"]["data"]]
+    keyids = [k["id"] for k in after["getKeyList"]["response"]["data"]]
     assert not errors and keyids.count(keyid) == 1, (
         f"concurrent {LISTS}: RPC errors {errors}; getKeyList then lists "
         f"key {keyid} {keyids.count(keyid)} times (want 1)")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.4: bucket and key names are checked for uniqueness across "
-    "all instances, not per instance"))
 def test_same_names_on_two_instances(cfg, ssh, rpc, make_instance):
     bucket, key = "gt-same", "gt-same-key"
     made = [make_instance() for _ in range(2)]
@@ -94,9 +82,6 @@ def test_same_names_on_two_instances(cfg, ssh, rpc, make_instance):
                       bucket, name.encode())
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.5: getBucketList matches live usage by global alias, so an "
-    "alias-less bucket stays Pending with no usage"))
 def test_aliasless_bucket_shows_usage(cfg, ssh, rpc, make_instance,
                                       s3_setup):
     name, info = make_instance()
@@ -114,17 +99,14 @@ def test_aliasless_bucket_shows_usage(cfg, ssh, rpc, make_instance,
 
     listing = rpc.call("Garage", "getBucketList",
                        {"start": 0, "limit": -1, "instanceuuid": info["uuid"]})
-    row = next(b for b in listing["data"] if b["garageid"] == bucket["id"])
-    shown = {k: row.get(k) for k in ("name", "state", "objects", "bytes")}
-    assert row["state"] != "Pending" and \
-        (row.get("objects"), row.get("bytes")) == (1, len(payload)), (
-            f"getBucketList shows alias-less bucket {bucket['id'][:12]} as "
-            f"{shown}, garage reports 1 object of {len(payload)} bytes")
+    row = next(b for b in listing["data"] if b["id"] == bucket["id"])
+    shown = {k: row.get(k) for k in ("label", "objects", "bytes")}
+    assert shown == {"label": bucket["id"][:16], "objects": 1,
+                     "bytes": len(payload)}, (
+        f"getBucketList shows alias-less bucket {bucket['id'][:16]} as "
+        f"{shown}, garage reports 1 object of {len(payload)} bytes")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "PLAN 3.3: list RPCs of a stopped instance show stale confdb rows "
-    "instead of saying the instance is not running"))
 def test_stopped_instance_rpcs_fail_fast(rpc, make_instance):
     name, info = make_instance(enabled=False)
     uuid = info["uuid"]

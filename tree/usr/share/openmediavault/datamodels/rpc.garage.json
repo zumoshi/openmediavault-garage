@@ -42,10 +42,9 @@
                     ]
                 },
                 "instanceuuid": {
-                    "type": [
-                        "string",
-                        "null"
-                    ]
+                    "type": "string",
+                    "format": "uuidv4",
+                    "required": true
                 }
             }
         }
@@ -257,18 +256,18 @@
         "params": {
             "type": "object",
             "properties": {
-                "uuid": {
-                    "type": "string",
-                    "required": true
-                },
                 "instanceuuid": {
                     "type": "string",
                     "format": "uuidv4",
                     "required": true
                 },
+                "id": {
+                    "type": "string",
+                    "required": true
+                },
                 "name": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9.-]*[a-z0-9]$",
+                    "pattern": "^([a-z0-9][a-z0-9.-]*[a-z0-9])?$",
                     "required": true
                 },
                 "maxsize": {
@@ -305,26 +304,26 @@
         "params": {
             "type": "object",
             "properties": {
-                "uuid": {
-                    "type": "string",
-                    "required": true
-                },
                 "instanceuuid": {
                     "type": "string",
                     "format": "uuidv4",
+                    "required": true
+                },
+                "id": {
+                    "type": "string",
                     "required": true
                 },
                 "name": {
                     "type": "string",
                     "required": true
                 },
-                "keyid": {
+                "importid": {
                     "type": [
                         "string",
                         "null"
                     ]
                 },
-                "secret": {
+                "importsecret": {
                     "type": [
                         "string",
                         "null"
@@ -339,23 +338,19 @@
         "params": {
             "type": "object",
             "properties": {
-                "uuid": {
-                    "type": "string",
-                    "required": true
-                },
                 "instanceuuid": {
                     "type": "string",
                     "format": "uuidv4",
                     "required": true
                 },
-                "keyuuid": {
+                "keyid": {
                     "type": "string",
-                    "format": "uuidv4",
+                    "minLength": 1,
                     "required": true
                 },
-                "bucketuuid": {
+                "bucketid": {
                     "type": "string",
-                    "format": "uuidv4",
+                    "minLength": 1,
                     "required": true
                 },
                 "allowread": {
@@ -366,6 +361,44 @@
                 },
                 "allowowner": {
                     "type": "boolean"
+                }
+            }
+        }
+    },
+    {
+        "type": "rpc",
+        "id": "rpc.garage.liveobject",
+        "params": {
+            "type": "object",
+            "properties": {
+                "instanceuuid": {
+                    "type": "string",
+                    "format": "uuidv4",
+                    "required": true
+                },
+                "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "required": true
+                }
+            }
+        }
+    },
+    {
+        "type": "rpc",
+        "id": "rpc.garage.permission",
+        "params": {
+            "type": "object",
+            "properties": {
+                "instanceuuid": {
+                    "type": "string",
+                    "format": "uuidv4",
+                    "required": true
+                },
+                "id": {
+                    "type": "string",
+                    "pattern": "^[^:]+:[^:]+$",
+                    "required": true
                 }
             }
         }
@@ -398,10 +431,9 @@
             "type": "object",
             "properties": {
                 "instanceuuid": {
-                    "type": "string"
-                },
-                "addnone": {
-                    "type": "boolean"
+                    "type": "string",
+                    "format": "uuidv4",
+                    "required": true
                 }
             }
         }

@@ -13,7 +13,6 @@ from botocore.exceptions import ClientError
 from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
-from garage_tester.rpc import NEW_UUID
 from garage_tester.ssh import shquote
 
 
@@ -188,14 +187,13 @@ def test_s3_unmapped_key_denied(cfg, rpc, make_instance):
     s3_port = instance.instance_row(rpc, name)["s3port"]
     bucket = f"gt-{secrets.token_hex(3)}"
     rpc.call("Garage", "setBucket", {
-        "uuid": NEW_UUID, "instanceuuid": info["uuid"], "name": bucket,
+        "instanceuuid": info["uuid"], "id": "", "name": bucket,
         "maxsize": 0, "maxobjects": 0, "website": False,
         "indexdoc": "index.html", "errordoc": ""})
     stray = rpc.call("Garage", "setKey", {
-        "uuid": NEW_UUID, "instanceuuid": info["uuid"],
-        "name": "gt-stray-key", "keyid": "", "secret": ""})
+        "instanceuuid": info["uuid"], "id": "", "name": "gt-stray-key"})
     s3c = s3.client(f"http://{cfg.host}:{s3_port}",
-                    stray["keyid"], stray["secret"])
+                    stray["id"], stray["secret"])
     try:
         s3c.put_object(Bucket=bucket, Key="nope", Body=b"x")
     except ClientError:
