@@ -117,7 +117,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$assoc["rpcsecret"] = strlen($assoc["rpcsecret"] ?? "") > 0;
 			$assoc["admintoken"] = strlen($assoc["admintoken"] ?? "") > 0;
 			$assoc["webuipassword"] = strlen($assoc["webuipassword"] ?? "") > 0;
-			$this->backfillStorage($assoc);
 			$name = $assoc["name"];
 			$assoc["running"] = (new SystemCtl("garage@" . $name))->isActive();
 			$assoc["webuirunning"] = $assoc["webuienable"] &&
@@ -179,21 +178,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			return $assoc;
 		}
 		$this->validateMethodParams($params, "rpc.common.objectuuid");
-		$assoc = $db->getAssoc("conf.service.garage.instance", $params["uuid"]);
-		$this->backfillStorage($assoc);
-		return $assoc;
-	}
-
-	private function backfillStorage(array &$assoc): void
-	{
-		// Instances created before the unified storage field only recorded
-		// metadatashareuuid. Present them as split-storage instances so the
-		// form and the deployment render exactly what they were created with.
-		if (strlen($assoc["storageshareuuid"] ?? "") !== 36 &&
-			strlen($assoc["metadatashareuuid"] ?? "") === 36) {
-			$assoc["storagesplit"] = true;
-			$assoc["storageshareuuid"] = $assoc["metadatashareuuid"];
-		}
+		return $db->getAssoc("conf.service.garage.instance", $params["uuid"]);
 	}
 
 	public function suggestPorts($params, $context)
@@ -828,23 +813,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	private function revokeAcls($db, $instance)
 	{
 		$uuid = $instance->get("uuid");
-		$stor = $instance->get("storageshareuuid");
-		// Legacy instances only recorded metadatashareuuid; their storage
-		// folder is the metadata folder.
-		if (strlen($stor ?? "") !== 36 &&
-			strlen($instance->get("metadatashareuuid") ?? "") === 36) {
-			$stor = $instance->get("metadatashareuuid");
-		}
-		$shares = [];
-		if (strlen($stor ?? "") === 36) {
-			$shares[] = $stor;
-		}
-		if (strlen($instance->get("metadatashareuuid") ?? "") === 36) {
-			$shares[] = $instance->get("metadatashareuuid");
-		}
-		if (strlen($instance->get("snapshotsshareuuid") ?? "") === 36) {
-			$shares[] = $instance->get("snapshotsshareuuid");
-		}
+		$shares = $this->instanceShares($instance);
 		foreach ($db->get("conf.service.garage.datastore") as $dsv) {
 			if ($dsv->get("instanceuuid") === $uuid) {
 				$shares[] = $dsv->get("shareuuid");
@@ -857,20 +826,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			if ($instancev->get("uuid") === $uuid) {
 				continue;
 			}
-			$otherStor = $instancev->get("storageshareuuid");
-			if (strlen($otherStor ?? "") !== 36 &&
-				strlen($instancev->get("metadatashareuuid") ?? "") === 36) {
-				$otherStor = $instancev->get("metadatashareuuid");
-			}
-			if (strlen($otherStor ?? "") === 36) {
-				$stillUsed[] = $otherStor;
-			}
-			if (strlen($instancev->get("metadatashareuuid") ?? "") === 36) {
-				$stillUsed[] = $instancev->get("metadatashareuuid");
-			}
-			if (strlen($instancev->get("snapshotsshareuuid") ?? "") === 36) {
-				$stillUsed[] = $instancev->get("snapshotsshareuuid");
-			}
+			array_push($stillUsed, ...$this->instanceShares($instancev));
 		}
 		foreach ($db->get("conf.service.garage.datastore") as $dsv) {
 			if ($dsv->get("instanceuuid") !== $uuid) {
@@ -878,7 +834,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 		}
 		foreach (array_unique($shares) as $shareUuid) {
-			if (in_array($shareUuid, $stillUsed) || strlen($shareUuid ?? "") !== 36) {
+			if (in_array($shareUuid, $stillUsed)) {
 				continue;
 			}
 			$path = $this->getSharedFolderPath($db, $shareUuid);
@@ -893,4 +849,12 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		}
 	}
 
+	// The instance's own folders that are set: storage, metadata, snapshots.
+	private function instanceShares($instance): array
+	{
+		return array_filter([$instance->get("storageshareuuid"),
+			$instance->get("metadatashareuuid"),
+			$instance->get("snapshotsshareuuid")],
+			fn($share) => strlen($share) === 36);
+	}
 }

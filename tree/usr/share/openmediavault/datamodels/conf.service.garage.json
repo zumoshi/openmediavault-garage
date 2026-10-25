@@ -206,6 +206,14 @@
                                 "type": "string",
                                 "maxLength": 128,
                                 "default": ""
+                            },
+                            "storageshareuuid": {
+                                "type": "string",
+                                "default": ""
+                            },
+                            "storagesplit": {
+                                "type": "boolean",
+                                "default": false
                             }
                         }
                     }
@@ -249,14 +257,6 @@
                     }
                 }
             }
-        },
-        "storageshareuuid": {
-            "type": "string",
-            "default": ""
-        },
-        "storagesplit": {
-            "type": "boolean",
-            "default": false
         }
     }
 }

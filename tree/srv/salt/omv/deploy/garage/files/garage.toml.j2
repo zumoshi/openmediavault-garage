@@ -3,7 +3,7 @@
 
 {% if split %}
 {%   if metapath == storpath %}
-{#- Legacy instance: metadata lives at the shared folder root. #}
+{#- Metadata and storage share one folder: metadata lives at its root. #}
 metadata_dir = {{ metapath | json }}
 {%   else %}
 metadata_dir = {{ (metabase ~ '/meta') | json }}

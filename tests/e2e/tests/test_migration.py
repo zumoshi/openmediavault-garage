@@ -3,7 +3,7 @@ confdb mirror of garage's buckets, keys and permissions and the admin API
 switch, fills in the storage share of rows that only name a metadata
 share, and running it again changes nothing."""
 
-import pytest
+from xml.etree.ElementTree import canonicalize
 
 from garage_tester import instance
 
@@ -16,9 +16,16 @@ LEFTOVERS = ("/config/services/garage/buckets",
              "/config/services/garage/instances/instance/adminenable")
 
 
+def _config(ssh, xpath: str) -> str:
+    """The nodes at `xpath`, ignoring the indentation the OMV helpers
+    rewrite on every edit."""
+    xml = ssh.out(f"xmlstarlet sel -t -c \"{xpath}\" "
+                  "/etc/openmediavault/config.xml")
+    return canonicalize(f"<r>{xml}</r>", strip_text=True)
+
+
 def _garage_config(ssh) -> str:
-    return ssh.out("xmlstarlet sel -t -c /config/services/garage "
-                   "/etc/openmediavault/config.xml")
+    return _config(ssh, "/config/services/garage")
 
 
 def _count(ssh, xpath: str) -> int:
@@ -59,7 +66,6 @@ def test_migration_drops_mirror_and_admin_switch(ssh, rpc, make_instance):
     instance.wait_health(ssh, port)
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="REVIEW 3.2")
 def test_migration_fills_storage_of_prerelease_row(ssh, rpc, make_instance,
                                                    shares):
     """A pre-release row names only a metadata share. The migration turns
@@ -77,8 +83,7 @@ def test_migration_fills_storage_of_prerelease_row(ssh, rpc, make_instance,
         omv_config_delete "{row}/storageshareuuid"
         omv_config_delete "{row}/storagesplit"
         omv_config_add_key "{row}" metadatashareuuid {share_uuid}""")
-    others_before = ssh.out(f"xmlstarlet sel -t -c \"{others}\" "
-                            "/etc/openmediavault/config.xml")
+    others_before = _config(ssh, others)
 
     ssh.out(MIGRATE)
     once = _garage_config(ssh)
@@ -90,8 +95,7 @@ def test_migration_fills_storage_of_prerelease_row(ssh, rpc, make_instance,
     assert (migrated["storageshareuuid"], migrated["storagesplit"]) == \
         (share_uuid, True), f"migrated row: {migrated}"
     assert once == twice, "a second migration run changed the config"
-    assert ssh.out(f"xmlstarlet sel -t -c \"{others}\" "
-                   "/etc/openmediavault/config.xml") == others_before, \
+    assert _config(ssh, others) == others_before, \
         "the migration changed rows that already name a storage share"
 
     rpc.apply(["garage"])

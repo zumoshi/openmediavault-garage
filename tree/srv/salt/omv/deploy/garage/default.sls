@@ -23,10 +23,8 @@ configure_garage_nginx_dir:
 {%- set enabled = [] %}
 {%- for instance in instances %}
 {%- if instance.enable | to_bool %}
-{%- set legacy = instance.storageshareuuid | length != 36 %}
-{%- set split = instance.storagesplit | to_bool or legacy %}
-{%- set storuuid = instance.metadatashareuuid if legacy else instance.storageshareuuid %}
-{%- set storpath = salt['omv_conf.get_sharedfolder_path'](storuuid) %}
+{%- set split = instance.storagesplit | to_bool %}
+{%- set storpath = salt['omv_conf.get_sharedfolder_path'](instance.storageshareuuid) %}
 {%- set storbase = storpath | regex_replace('/$', '') %}
 {%- set metapath = '' %}
 {%- set metabase = '' %}
