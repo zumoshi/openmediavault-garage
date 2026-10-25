@@ -109,3 +109,43 @@ def test_bucket_key_permission_round_trip(page, cfg, ssh, make_instance):
     ui.delete_row(page, panel, bucket)
     assert _bucket(ssh, name, bucket) is None, \
         f"garage still has bucket {bucket} after deleting it in the UI"
+
+
+def _edit_bucket(page, host: str, uuid: str, label: str) -> None:
+    panel = ui.details_tab(page, host, uuid, "Buckets")
+    panel.get_by_role("cell", name=label, exact=True).click()
+    panel.get_by_role("button", name="Edit").click()
+    expect(page.get_by_role("spinbutton", name="Maximum objects")
+           ).to_be_visible(timeout=30000)
+
+
+def test_aliasless_bucket_edited_named_and_renamed_via_ui(page, cfg, ssh,
+                                                          make_instance):
+    name, info = make_instance()
+    host, uuid = cfg.host, info["uuid"]
+    bucket_id = garage_json(ssh, name, "CreateBucket",
+                            {"globalAlias": None})["id"]
+
+    def bucket() -> dict:
+        return garage_json(ssh, name, "GetBucketInfo", {"id": bucket_id})
+
+    _edit_bucket(page, host, uuid, bucket_id[:16])
+    expect(page.get_by_role("textbox", name="Name", exact=True)).to_have_value("")
+    page.get_by_role("spinbutton", name="Maximum objects").fill("5")
+    ui.save_details_form(page)
+    got = bucket()
+    assert (got["globalAliases"], got["quotas"]["maxObjects"]) == ([], 5), \
+        f"garage after setting a quota on the alias-less bucket: {got}"
+
+    _edit_bucket(page, host, uuid, bucket_id[:16])
+    page.get_by_role("textbox", name="Name", exact=True).fill("gt-named")
+    ui.save_details_form(page)
+    assert bucket()["globalAliases"] == ["gt-named"], \
+        f"garage aliases after naming the bucket: {bucket()['globalAliases']}"
+
+    _edit_bucket(page, host, uuid, "gt-named")
+    page.get_by_role("textbox", name="Name", exact=True).fill("gt-renamed")
+    ui.save_details_form(page)
+    got = bucket()
+    assert (got["globalAliases"], got["quotas"]["maxObjects"]) == \
+        (["gt-renamed"], 5), f"garage after renaming the bucket: {got}"
