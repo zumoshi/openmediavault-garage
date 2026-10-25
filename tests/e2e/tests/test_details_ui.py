@@ -1,0 +1,116 @@
+"""Buckets, access keys and permissions made, changed and removed through
+the instance details page, checked against what garage itself reports."""
+
+import pytest
+from playwright.sync_api import expect
+
+from garage_tester import ui
+from garage_tester.instance import garage_json
+
+GIB = 1024 ** 3
+
+
+def _bucket(ssh, name: str, alias: str) -> dict | None:
+    for bucket in garage_json(ssh, name, "ListBuckets"):
+        if alias in bucket["globalAliases"]:
+            return garage_json(ssh, name, "GetBucketInfo", {"id": bucket["id"]})
+    return None
+
+
+def _key(ssh, name: str, key_name: str) -> dict | None:
+    for key in garage_json(ssh, name, "ListKeys"):
+        if key["name"] == key_name:
+            return garage_json(ssh, name, "GetKeyInfo",
+                               {"id": key["id"], "showSecretKey": True})
+    return None
+
+
+def _permissions(ssh, name: str, bucket_alias: str, key_id: str) -> dict:
+    keys = _bucket(ssh, name, bucket_alias)["keys"]
+    return next((k["permissions"] for k in keys
+                 if k["accessKeyId"] == key_id), {})
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "the permission create form is a 404: OMV's route builder mounts the "
+    "first sorted route under /services/garage, access/create/:instanceuuid, "
+    "at /services/garage/create/:instanceuuid"))
+def test_bucket_key_permission_round_trip(page, cfg, ssh, make_instance):
+    name, info = make_instance()
+    host, uuid = cfg.host, info["uuid"]
+    bucket, key = "gt-ui-bucket", "gt-ui-key"
+
+    panel = ui.details_tab(page, host, uuid, "Buckets")
+    panel.get_by_role("button", name="Create").click()
+    page.get_by_role("textbox", name="Name", exact=True).fill(bucket)
+    page.get_by_role("spinbutton", name="Maximum size (GiB)").fill("2")
+    ui.save_details_form(page)
+    made = _bucket(ssh, name, bucket)
+    assert made and made["quotas"]["maxSize"] == 2 * GIB, \
+        f"garage after creating bucket {bucket} in the UI: {made}"
+
+    panel = ui.details_tab(page, host, uuid, "Buckets")
+    panel.get_by_role("cell", name=bucket, exact=True).click()
+    panel.get_by_role("button", name="Edit").click()
+    expect(page.get_by_role("spinbutton", name="Maximum size (GiB)")
+           ).to_have_value("2", timeout=30000)
+    page.get_by_role("spinbutton", name="Maximum objects").fill("50")
+    ui.save_details_form(page)
+    quotas = _bucket(ssh, name, bucket)["quotas"]
+    assert quotas == {"maxSize": 2 * GIB, "maxObjects": 50}, \
+        f"garage quotas after editing bucket {bucket} in the UI: {quotas}"
+
+    panel = ui.details_tab(page, host, uuid, "Access keys")
+    panel.get_by_role("button", name="Create").click()
+    page.get_by_role("textbox", name="Name", exact=True).fill(key)
+    ui.save_details_form(page)
+    made_key = _key(ssh, name, key)
+    assert made_key, f"garage has no key {key} after creating it in the UI"
+
+    panel = ui.details_tab(page, host, uuid, "Access keys")
+    panel.get_by_role("cell", name=key, exact=True).click()
+    panel.get_by_role("button", name="Edit").click()
+    expect(page.get_by_role("textbox", name="Secret", exact=True)
+           ).to_have_value(made_key["secretAccessKey"], timeout=30000)
+    page.get_by_role("textbox", name="Name", exact=True).fill(f"{key}-2")
+    ui.save_details_form(page)
+    key = f"{key}-2"
+    assert _key(ssh, name, key), f"garage has no key renamed to {key}"
+    key_id = made_key["accessKeyId"]
+
+    panel = ui.details_tab(page, host, uuid, "Permissions")
+    panel.get_by_role("button", name="Create").click()
+    ui.pick(page, "Access key", key)
+    ui.pick(page, "Bucket", bucket)
+    ui.save_details_form(page)
+    perms = _permissions(ssh, name, bucket, key_id)
+    assert perms == {"read": True, "write": True, "owner": False}, \
+        f"garage permissions after granting read and write in the UI: {perms}"
+
+    panel = ui.details_tab(page, host, uuid, "Permissions")
+    panel.get_by_role("cell", name=key, exact=True).click()
+    panel.get_by_role("button", name="Edit").click()
+    expect(page.get_by_role("checkbox", name="Read")).to_be_checked(
+        timeout=30000)
+    page.locator("label", has_text="Owner").first.click()
+    page.locator("label", has_text="Write").first.click()
+    ui.save_details_form(page)
+    perms = _permissions(ssh, name, bucket, key_id)
+    assert perms == {"read": True, "write": False, "owner": True}, \
+        f"garage permissions after editing to read and owner: {perms}"
+
+    panel = ui.details_tab(page, host, uuid, "Permissions")
+    ui.delete_row(page, panel, key)
+    perms = _permissions(ssh, name, bucket, key_id)
+    assert not any(perms.values()), \
+        f"garage permissions after deleting the permission in the UI: {perms}"
+
+    panel = ui.details_tab(page, host, uuid, "Access keys")
+    ui.delete_row(page, panel, key)
+    assert _key(ssh, name, key) is None, \
+        f"garage still has key {key} after deleting it in the UI"
+
+    panel = ui.details_tab(page, host, uuid, "Buckets")
+    ui.delete_row(page, panel, bucket)
+    assert _bucket(ssh, name, bucket) is None, \
+        f"garage still has bucket {bucket} after deleting it in the UI"

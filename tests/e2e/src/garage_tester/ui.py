@@ -58,12 +58,19 @@ def name_field(page: Page):
     return page.get_by_role("textbox", name="Name", exact=True)
 
 
-def _pick_option(page: Page, text: str) -> None:
+def _pick_option(page: Page, text: str, exact: bool = True) -> None:
     """Click `text` in the open select panel and wait for it to close."""
     option = page.locator(".cdk-overlay-container").get_by_text(
-        text, exact=True).first
+        text, exact=exact).first
     option.click()
     option.wait_for(state="hidden")
+
+
+def pick(page: Page, combobox: str, option: str) -> None:
+    """Open the select `combobox` and click the option containing
+    `option`."""
+    page.get_by_role("combobox", name=combobox).click()
+    _pick_option(page, option, exact=False)
 
 
 def create_instance(
@@ -199,6 +206,38 @@ def _failed_states(message: str) -> str:
     failed = [b.strip() for b in message.split("----------")
               if "Result: False" in b]
     return "\n----------\n".join(failed)[:3000] if failed else message[:600]
+
+
+def details_tab(page: Page, host: str, uuid: str, tab: str):
+    """Open one tab of the instance details page. Returns the tab panel
+    once its table has loaded."""
+    if f"{DETAILS_URL}/{uuid}" not in page.url:
+        page.goto(f"http://{host}{DETAILS_URL}/{uuid}")
+    page.get_by_role("tab", name=tab).click()
+    panel = page.get_by_role("tabpanel", name=tab)
+    panel.get_by_role("table").wait_for(state="visible", timeout=30000)
+    return panel
+
+
+def save_details_form(page: Page) -> None:
+    """Click Save on a bucket, key or permission form and wait until the
+    workbench is back on the details page."""
+    page.get_by_role("button", name="Save").click()
+    try:
+        page.wait_for_url(lambda url: "/services/garage/details/" in url,
+                          timeout=30000)
+    except PlaywrightTimeout:
+        body = page.locator("body").inner_text()
+        raise AssertionError(f"saving the form did not finish: {body[:600]}")
+
+
+def delete_row(page: Page, panel, cell: str) -> None:
+    """Select the row with `cell` in `panel`, delete it and confirm."""
+    panel.get_by_role("cell", name=cell, exact=True).click()
+    panel.get_by_role("button", name="Delete").click()
+    page.get_by_role("button", name="Yes").click(timeout=20000)
+    panel.get_by_role("cell", name=cell, exact=True).wait_for(
+        state="detached", timeout=30000)
 
 
 def select_row(page: Page, name: str) -> None:
