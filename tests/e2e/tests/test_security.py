@@ -169,8 +169,6 @@ def _set_lastaccess(ssh, cookie: str, when: int) -> None:
             f"{path}) && printf %s \"$data\" > {path}")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "web UI requests do not refresh the OMV session yet"))
 def test_webui_use_keeps_omv_session_alive(cfg, ssh, webui_instance,
                                            non_admin_cookie):
     """An admin's web UI request refreshes the OMV session's last access,
