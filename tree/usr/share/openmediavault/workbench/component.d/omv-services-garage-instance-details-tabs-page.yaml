@@ -33,14 +33,14 @@ data:
             - template: create
               execute:
                 type: url
-                url: "/services/garage/datastores/create/{{ _routeParams.uuid }}"
+                url: "/services/garage/details/datastores/create/{{ _routeParams.uuid }}"
             - template: edit
               enabledConstraints:
                 minSelected: 1
                 maxSelected: 1
               execute:
                 type: url
-                url: "/services/garage/datastores/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+                url: "/services/garage/details/datastores/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
             - template: delete
               confirmationDialogConfig:
                 template: confirmation-danger
@@ -60,7 +60,8 @@ data:
           hasSearchField: true
           sorters:
             - dir: asc
-              prop: name
+              prop: label
+          rowId: id
           store:
             proxy:
               service: Garage
@@ -70,11 +71,7 @@ data:
                   instanceuuid: "{{ _routeParams.uuid }}"
           columns:
             - name: _("Name")
-              prop: name
-              flexGrow: 1
-              sortable: true
-            - name: _("State")
-              prop: state
+              prop: label
               flexGrow: 1
               sortable: true
             - name: _("Website")
@@ -96,14 +93,14 @@ data:
             - template: create
               execute:
                 type: url
-                url: "/services/garage/buckets/create/{{ _routeParams.uuid }}"
+                url: "/services/garage/details/buckets/create/{{ _routeParams.uuid }}"
             - template: edit
               enabledConstraints:
                 minSelected: 1
                 maxSelected: 1
               execute:
                 type: url
-                url: "/services/garage/buckets/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+                url: "/services/garage/details/buckets/edit/{{ _routeParams.uuid }}/{{ _selected[0].id }}"
             - template: delete
               confirmationDialogConfig:
                 template: confirmation-danger
@@ -114,7 +111,8 @@ data:
                   service: Garage
                   method: deleteBucket
                   params:
-                    uuid: "{{ _selected[0].uuid }}"
+                    instanceuuid: "{{ _routeParams.uuid }}"
+                    id: "{{ _selected[0].id }}"
       - type: datatable
         label: _("Access keys")
         config:
@@ -124,6 +122,7 @@ data:
           sorters:
             - dir: asc
               prop: name
+          rowId: id
           store:
             proxy:
               service: Garage
@@ -137,21 +136,21 @@ data:
               flexGrow: 1
               sortable: true
             - name: _("Key ID")
-              prop: keyid
+              prop: id
               flexGrow: 1
               sortable: true
           actions:
             - template: create
               execute:
                 type: url
-                url: "/services/garage/keys/create/{{ _routeParams.uuid }}"
+                url: "/services/garage/details/keys/create/{{ _routeParams.uuid }}"
             - template: edit
               enabledConstraints:
                 minSelected: 1
                 maxSelected: 1
               execute:
                 type: url
-                url: "/services/garage/keys/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+                url: "/services/garage/details/keys/edit/{{ _routeParams.uuid }}/{{ _selected[0].id }}"
             - template: delete
               confirmationDialogConfig:
                 template: confirmation-danger
@@ -162,7 +161,8 @@ data:
                   service: Garage
                   method: deleteKey
                   params:
-                    uuid: "{{ _selected[0].uuid }}"
+                    instanceuuid: "{{ _routeParams.uuid }}"
+                    id: "{{ _selected[0].id }}"
       - type: datatable
         label: _("Permissions")
         config:
@@ -172,6 +172,7 @@ data:
           sorters:
             - dir: asc
               prop: keyname
+          rowId: id
           store:
             proxy:
               service: Garage
@@ -207,14 +208,14 @@ data:
             - template: create
               execute:
                 type: url
-                url: "/services/garage/access/create/{{ _routeParams.uuid }}"
+                url: "/services/garage/details/permissions/create/{{ _routeParams.uuid }}"
             - template: edit
               enabledConstraints:
                 minSelected: 1
                 maxSelected: 1
               execute:
                 type: url
-                url: "/services/garage/access/edit/{{ _routeParams.uuid }}/{{ _selected[0].uuid }}"
+                url: "/services/garage/details/permissions/edit/{{ _routeParams.uuid }}/{{ _selected[0].id }}"
             - template: delete
               confirmationDialogConfig:
                 template: confirmation-danger
@@ -225,4 +226,5 @@ data:
                   service: Garage
                   method: deleteMapping
                   params:
-                    uuid: "{{ _selected[0].uuid }}"
+                    instanceuuid: "{{ _routeParams.uuid }}"
+                    id: "{{ _selected[0].id }}"

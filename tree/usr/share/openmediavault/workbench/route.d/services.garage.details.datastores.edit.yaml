@@ -1,8 +1,8 @@
 version: "1.0"
 type: route
 data:
-  url: "/services/garage/datastores/edit/:instanceuuid/:uuid"
+  url: "/services/garage/details/datastores/edit/:instanceuuid/:uuid"
   title: _("Edit")
   editing: true
-  notificationTitle: _("Updated {{ datastore }}.")
+  notificationTitle: _("Updated the datastore.")
   component: omv-services-garage-datastores-form-page

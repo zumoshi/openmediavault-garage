@@ -1,7 +1,6 @@
 """Buckets, access keys and permissions made, changed and removed through
 the instance details page, checked against what garage itself reports."""
 
-import pytest
 from playwright.sync_api import expect
 
 from garage_tester import ui
@@ -31,10 +30,6 @@ def _permissions(ssh, name: str, bucket_alias: str, key_id: str) -> dict:
                  if k["accessKeyId"] == key_id), {})
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "the permission create form is a 404: OMV's route builder mounts the "
-    "first sorted route under /services/garage, access/create/:instanceuuid, "
-    "at /services/garage/create/:instanceuuid"))
 def test_bucket_key_permission_round_trip(page, cfg, ssh, make_instance):
     name, info = make_instance()
     host, uuid = cfg.host, info["uuid"]

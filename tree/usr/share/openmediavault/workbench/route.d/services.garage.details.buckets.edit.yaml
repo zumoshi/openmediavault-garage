@@ -1,8 +1,8 @@
 version: "1.0"
 type: route
 data:
-  url: "/services/garage/buckets/edit/:instanceuuid/:uuid"
+  url: "/services/garage/details/buckets/edit/:instanceuuid/:id"
   title: _("Edit")
   editing: true
-  notificationTitle: _("Updated {{ bucket }}.")
+  notificationTitle: _("Updated the bucket.")
   component: omv-services-garage-buckets-form-page

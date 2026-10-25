@@ -9,22 +9,24 @@ data:
       get:
         method: getBucket
         params:
-          uuid: "{{ _routeParams.uuid }}"
           instanceuuid: "{{ _routeParams.instanceuuid }}"
+          id: "{{ _routeParams.id }}"
       post:
         method: setBucket
     fields:
-      - type: confObjUuid
       - type: hidden
         name: instanceuuid
         value: "{{ _routeParams.instanceuuid }}"
+      - type: hidden
+        name: id
+        value: ""
       - type: textInput
         name: name
         label: _("Name")
-        hint: _("The bucket name is also its global S3 alias.")
+        hint: _("The bucket's global S3 alias. A bucket made without one, for example through a local alias, is listed by the start of its ID until you name it here.")
         value: ""
         validators:
-          required: true
+          required: "{{ not (_routeConfig.data.editing | toboolean) }}"
           minLength: 3
           maxLength: 63
           pattern:
@@ -74,8 +76,6 @@ data:
               operator: truthy
               arg0:
                 prop: website
-      - type: hint
-        text: _("Bucket, key and access changes require the instance to be running. Apply configuration changes first, otherwise this will fail.")
     buttons:
       - template: submit
         execute:

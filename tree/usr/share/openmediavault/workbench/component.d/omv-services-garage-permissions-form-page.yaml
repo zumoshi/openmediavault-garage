@@ -1,7 +1,7 @@
 version: "1.0"
 type: component
 data:
-  name: omv-services-garage-access-form-page
+  name: omv-services-garage-permissions-form-page
   type: formPage
   config:
     request:
@@ -9,21 +9,21 @@ data:
       get:
         method: getMapping
         params:
-          uuid: "{{ _routeParams.uuid }}"
           instanceuuid: "{{ _routeParams.instanceuuid }}"
+          id: "{{ _routeParams.id }}"
       post:
         method: setMapping
     fields:
-      - type: confObjUuid
       - type: hidden
         name: instanceuuid
         value: "{{ _routeParams.instanceuuid }}"
       - type: select
-        name: keyuuid
+        name: keyid
         label: _("Access key")
-        textField: name
-        valueField: uuid
+        textField: label
+        valueField: id
         value: ""
+        disabled: "{{ _routeConfig.data.editing | toboolean }}"
         validators:
           required: true
         store:
@@ -34,11 +34,12 @@ data:
               params:
                 instanceuuid: "{{ _routeParams.instanceuuid }}"
       - type: select
-        name: bucketuuid
+        name: bucketid
         label: _("Bucket")
-        textField: name
-        valueField: uuid
+        textField: label
+        valueField: id
         value: ""
+        disabled: "{{ _routeConfig.data.editing | toboolean }}"
         validators:
           required: true
         store:
@@ -60,8 +61,6 @@ data:
         name: allowowner
         label: _("Owner")
         value: false
-      - type: hint
-        text: _("Grants the key access to the bucket. The instance must be running; apply configuration changes first.")
     buttons:
       - template: submit
         execute:

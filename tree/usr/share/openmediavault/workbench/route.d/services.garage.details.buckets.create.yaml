@@ -1,0 +1,7 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/buckets/create/:instanceuuid"
+  title: _("Create")
+  notificationTitle: _("Created bucket {{ name }}.")
+  component: omv-services-garage-buckets-form-page

@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/keys/edit/:instanceuuid/:id"
+  title: _("Edit")
+  editing: true
+  notificationTitle: _("Updated access key {{ name }}.")
+  component: omv-services-garage-keys-form-page

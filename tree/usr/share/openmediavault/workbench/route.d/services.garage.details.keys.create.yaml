@@ -1,0 +1,7 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/keys/create/:instanceuuid"
+  title: _("Create")
+  notificationTitle: _("Created access key {{ name }}.")
+  component: omv-services-garage-keys-form-page

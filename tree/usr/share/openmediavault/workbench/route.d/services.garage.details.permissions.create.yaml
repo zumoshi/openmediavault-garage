@@ -1,0 +1,7 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/permissions/create/:instanceuuid"
+  title: _("Create")
+  notificationTitle: _("Granted the permission.")
+  component: omv-services-garage-permissions-form-page

@@ -9,15 +9,17 @@ data:
       get:
         method: getKey
         params:
-          uuid: "{{ _routeParams.uuid }}"
           instanceuuid: "{{ _routeParams.instanceuuid }}"
+          id: "{{ _routeParams.id }}"
       post:
         method: setKey
     fields:
-      - type: confObjUuid
       - type: hidden
         name: instanceuuid
         value: "{{ _routeParams.instanceuuid }}"
+      - type: hidden
+        name: id
+        value: ""
       - type: textInput
         name: name
         label: _("Name")
@@ -25,21 +27,54 @@ data:
         validators:
           required: true
           maxLength: 128
-      - type: divider
-        title: _("Import existing key")
-      - type: passwordInput
+      - type: textInput
         name: keyid
         label: _("Key ID")
-        hint: _("Optional. Leave empty together with the secret to create a new key.")
-        autocomplete: "off"
         value: ""
+        readonly: true
+        hasCopyToClipboardButton: true
+        modifiers:
+          - type: visible
+            constraint:
+              operator: notEmpty
+              arg0:
+                prop: id
       - type: passwordInput
         name: secret
         label: _("Secret")
+        value: ""
+        readonly: true
+        autocomplete: "off"
+        hasCopyToClipboardButton: true
+        modifiers:
+          - type: visible
+            constraint:
+              operator: notEmpty
+              arg0:
+                prop: id
+      - type: textInput
+        name: importid
+        label: _("Key ID to import")
+        hint: _("Optional. Leave both import fields empty to create a new key. Open the key from the list afterwards to see its secret.")
         autocomplete: "off"
         value: ""
-      - type: hint
-        text: _("The secret of a newly created key is shown exactly once after creation and stored so access mappings can be managed here. The instance must be running; apply configuration changes first.")
+        modifiers:
+          - type: visible
+            constraint:
+              operator: empty
+              arg0:
+                prop: id
+      - type: passwordInput
+        name: importsecret
+        label: _("Secret to import")
+        autocomplete: "off"
+        value: ""
+        modifiers:
+          - type: visible
+            constraint:
+              operator: empty
+              arg0:
+                prop: id
     buttons:
       - template: submit
         execute:

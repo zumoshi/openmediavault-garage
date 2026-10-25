@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/garage/details/permissions/edit/:instanceuuid/:id"
+  title: _("Edit")
+  editing: true
+  notificationTitle: _("Updated the permission.")
+  component: omv-services-garage-permissions-form-page

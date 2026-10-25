@@ -1,7 +1,0 @@
-version: "1.0"
-type: route
-data:
-  url: "/services/garage/datastores/create/:instanceuuid"
-  title: _("Create")
-  notificationTitle: _("Created {{ datastore }}.")
-  component: omv-services-garage-datastores-form-page

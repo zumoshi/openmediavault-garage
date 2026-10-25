@@ -617,8 +617,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 
 	private function keyForm(array $info): array
 	{
-		return ["id" => $info["accessKeyId"], "name" => $info["name"],
-			"secret" => $info["secretAccessKey"] ?? ""];
+		return ["id" => $info["accessKeyId"], "keyid" => $info["accessKeyId"],
+			"name" => $info["name"], "secret" => $info["secretAccessKey"] ?? ""];
 	}
 
 	public function deleteKey($params, $context)
