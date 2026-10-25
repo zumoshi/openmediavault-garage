@@ -1,11 +1,13 @@
 """What a garage apply may touch: only the instances OMV manages, and
 each of them on its own."""
 
+import re
 import secrets
 
 import pytest
 
 from garage_tester import ui
+from garage_tester.ssh import shquote
 
 HANDMADE_TOML = """\
 metadata_dir = "/var/lib/garage/{name}/meta"
@@ -57,39 +59,41 @@ def test_apply_keeps_handmade_instance(ssh, rpc, handmade_instance):
         f"a garage apply removed or changed hand-written files: {kept}"
 
 
-def _make_broken_instance(ssh, shares, make_instance) -> str:
-    """Make an instance that fails to deploy: its storage path has a space
-    (REVIEW 2.8). Returns its name."""
-    share = f"gt{secrets.token_hex(3)}"
-    shares.create(share, reldirpath=f"{share} with space/")
-    try:
-        make_instance(storage_share=share)
-    except AssertionError:
-        pass
-    share_uuid = shares.uuid_by_name(share)
-    name = next(i["name"] for i in ssh.confdb("conf.service.garage.instance")
-                if i["storageshareuuid"] == share_uuid)
-    try:
-        ssh.wait_unit_running(f"garage@{name}", timeout_s=20)
-    except AssertionError:
+@pytest.fixture()
+def make_broken_instance(ssh, shares, make_instance):
+    """Make an instance whose Salt states fail on every apply: its storage
+    directory is moved away behind OMV's back, as if it was deleted on
+    disk. The directory is moved back before the instance is removed."""
+    moved: list[str] = []
+
+    def _make() -> str:
+        name, info = make_instance()
+        path = shares.path(info["storage_share"])
+        ssh.run(f"mv {shquote(path)} {shquote(path + '.gone')}")
+        moved.append(path)
         return name
-    raise RuntimeError(f"garage@{name} runs: a space in the share path no "
-                       "longer breaks an instance, so this test needs "
-                       "another broken instance")
+
+    yield _make
+
+    for path in moved:
+        ssh.run(f"mv {shquote(path + '.gone')} {shquote(path)}")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.8b: Salt deploys all instances in one run, so one instance "
-    "that fails to deploy fails the apply for every other instance"))
-def test_broken_instance_does_not_block_apply(page, cfg, ssh, rpc, shares,
-                                              make_instance):
+def test_broken_instance_does_not_block_apply(page, cfg, ssh, rpc,
+                                              make_instance,
+                                              make_broken_instance):
     healthy, info = make_instance()
-    _make_broken_instance(ssh, shares, make_instance)
+    broken = make_broken_instance()
     params = rpc.call("Garage", "getInstance", {"uuid": info["uuid"]})
     rpc.call("Garage", "setInstance", {**params, "loglevel": "debug"})
 
     ui.goto_instances(page, cfg.host)
-    ui.apply_via_ui(page, timeout_s=600)
+    with pytest.raises(AssertionError) as apply_error:
+        ui.apply_via_ui(page, timeout_s=600)
+    failed = re.findall(r"ID: (\S+)", str(apply_error.value))
+    assert failed and all(s.endswith(f"_{broken}") for s in failed), \
+        f"the apply must fail in the states of {broken} only: {apply_error.value}"
+
     ssh.wait_unit_running(f"garage@{healthy}")
     pid = ssh.unit_state(f"garage@{healthy}")["MainPID"]
     env = ssh.out(f"tr '\\0' '\\n' < /proc/{pid}/environ")
