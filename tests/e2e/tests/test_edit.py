@@ -78,6 +78,24 @@ def test_name_read_only_on_edit(page, cfg, make_instance):
         "the Name field is editable on the edit form"
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "Names are immutable, but setInstance renames an instance to any free "
+    "name and orphans its units and files"))
+def test_rename_rejected(ssh, rpc, make_instance):
+    name, info = make_instance()
+    params = rpc.call("Garage", "getInstance", {"uuid": info["uuid"]})
+    unused = f"gt{secrets.token_hex(3)}"
+
+    error = _set_instance_error(rpc, {**params, "name": unused})
+    names = _confdb_names(ssh)
+    if error is None:
+        rpc.delete_instance(unused)
+    assert error is not None, \
+        f"renaming {name} to {unused} was accepted, confdb names: {names}"
+    assert name in names and unused not in names, \
+        f"a rejected rename still changed the name, confdb names: {names}"
+
+
 def test_rename_onto_existing_name_rejected(page, cfg, ssh, rpc,
                                             make_instance):
     taken, _ = make_instance()
