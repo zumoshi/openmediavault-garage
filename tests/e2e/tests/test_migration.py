@@ -2,8 +2,6 @@
 permissions in confdb and had an admin API switch: the confdb migration
 drops both, and running it again changes nothing."""
 
-import pytest
-
 from garage_tester import instance
 
 HELPERS = ". /usr/share/openmediavault/scripts/helper-functions"
@@ -25,9 +23,6 @@ def _count(ssh, xpath: str) -> int:
                        "/etc/openmediavault/config.xml"))
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.3, PLAN 3.2: no migration drops the bucket, key and mapping "
-    "trees and the admin API switch"))
 def test_migration_drops_mirror_and_admin_switch(ssh, rpc, make_instance):
     name, info = make_instance()
     row = f"/config/services/garage/instances/instance[uuid='{info['uuid']}']"

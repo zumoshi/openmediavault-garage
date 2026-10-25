@@ -65,38 +65,6 @@ set -e
 #           <capacity>0</capacity>
 #         </datastore>
 #       </datastores>
-#       <buckets>
-#         <bucket>
-#           <uuid>...</uuid>
-#           <instanceuuid>...</instanceuuid>
-#           <name>...</name>
-#           <maxsize>0</maxsize>
-#           <maxobjects>0</maxobjects>
-#           <website>0|1</website>
-#           <indexdoc></indexdoc>
-#           <errordoc></errordoc>
-#         </bucket>
-#       </buckets>
-#       <keys>
-#         <key>
-#           <uuid>...</uuid>
-#           <instanceuuid>...</instanceuuid>
-#           <name>...</name>
-#           <keyid>...</keyid>
-#           <secret>...</secret>
-#         </key>
-#       </keys>
-#       <mappings>
-#         <mapping>
-#           <uuid>...</uuid>
-#           <instanceuuid>...</instanceuuid>
-#           <keyuuid>...</keyuuid>
-#           <bucketuuid>...</bucketuuid>
-#           <allowread>0|1</allowread>
-#           <allowwrite>0|1</allowwrite>
-#           <allowowner>0|1</allowowner>
-#         </mapping>
-#       </mappings>
 #     </garage>
 #   </services>
 # </config>
@@ -105,9 +73,6 @@ if ! omv_config_exists "/config/services/garage"; then
 	omv_config_add_node "/config/services" "garage"
 	omv_config_add_node "/config/services/garage" "instances"
 	omv_config_add_node "/config/services/garage" "datastores"
-	omv_config_add_node "/config/services/garage" "buckets"
-	omv_config_add_node "/config/services/garage" "keys"
-	omv_config_add_node "/config/services/garage" "mappings"
 fi
 
 exit 0

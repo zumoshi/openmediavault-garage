@@ -25,7 +25,7 @@ class OMVModuleGarage extends \OMV\Engine\Module\ServiceAbstract
 			OMV_NOTIFY_MODIFY,
 			"org.openmediavault.conf.service.garage",
 			[$this, "setDirty"]);
-		foreach (["instance", "datastore", "bucket", "key", "mapping"] as $model) {
+		foreach (["instance", "datastore"] as $model) {
 			$dispatcher->addListener(
 				OMV_NOTIFY_CREATE | OMV_NOTIFY_MODIFY | OMV_NOTIFY_DELETE,
 				"org.openmediavault.conf.service.garage." . $model,
