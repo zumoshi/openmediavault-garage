@@ -29,7 +29,7 @@ The tests never install anything.
   bucket without a global alias. The same bucket and key names on two
   instances.
 - An apply leaves hand-written garage instances alone, and one instance
-  that cannot start does not stop the others from applying.
+  that fails to deploy does not stop the others from applying.
 
 ## Open bugs
 
@@ -85,7 +85,7 @@ export OMV_DISK=loop                 # substring of the devicefile
 uv run pytest -q
 ```
 
-A full run takes about 21 minutes.
+A full run takes about 29 minutes.
 
 `OMV_DISK` is matched as a substring against the device files of mounted
 filesystems (e.g. `sda` matches `/dev/sda1`, `loop` matches `/dev/loop0`).
