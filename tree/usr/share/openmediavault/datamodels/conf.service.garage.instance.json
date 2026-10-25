@@ -60,10 +60,6 @@
             "maxLength": 255,
             "default": ""
         },
-        "adminenable": {
-            "type": "boolean",
-            "default": true
-        },
         "adminport": {
             "type": "integer",
             "minimum": 1,

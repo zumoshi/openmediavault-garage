@@ -32,7 +32,6 @@ set -e
 #           <webenable>0|1</webenable>
 #           <webport>3902</webport>
 #           <webrootdomain></webrootdomain>
-#           <adminenable>0|1</adminenable>
 #           <adminport>3903</adminport>
 #           <dbengine>lmdb</dbengine>
 #           <compressionlevel>1</compressionlevel>

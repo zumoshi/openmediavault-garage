@@ -107,9 +107,6 @@
                     ],
                     "pattern": "^(\\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$"
                 },
-                "adminenable": {
-                    "type": "boolean"
-                },
                 "adminport": {
                     "type": "integer",
                     "minimum": 1,

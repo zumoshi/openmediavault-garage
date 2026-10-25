@@ -67,11 +67,10 @@ api_bind_addr = {{ ('[::]:' ~ instance.s3port) | json }}
 {% if instance.s3rootdomain | length > 0 %}
 root_domain = {{ instance.s3rootdomain | json }}
 {% endif %}
-{% if instance.adminenable %}
+
 [admin]
 api_bind_addr = {{ ('127.0.0.1:' ~ instance.adminport) | json }}
 admin_token = {{ instance.admintoken | json }}
-{% endif %}
 {% if instance.webenable %}
 [s3_web]
 bind_addr = {{ ('[::]:' ~ instance.webport) | json }}

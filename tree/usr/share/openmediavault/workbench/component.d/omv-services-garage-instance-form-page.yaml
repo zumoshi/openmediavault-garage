@@ -72,26 +72,16 @@ data:
           min: 1
           max: 65535
           patternType: port
-      - type: checkbox
-        name: adminenable
-        label: _("Enable admin API")
-        value: true
-        hint: _("Required for the web UI. Listens on the loopback interface only.")
       - type: numberInput
         name: adminport
         label: _("Admin API port")
+        hint: _("Used by OpenMediaVault and the web UI. Listens on the loopback interface only.")
         value: 3903
         validators:
           required: true
           min: 1
           max: 65535
           patternType: port
-        modifiers:
-          - type: visible
-            constraint:
-              operator: truthy
-              arg0:
-                prop: adminenable
       - type: checkbox
         name: webenable
         label: _("Enable website hosting")
@@ -133,7 +123,7 @@ data:
         name: webuienable
         label: _("Enable web UI")
         value: false
-        hint: _("Requires the admin API. Served through the OpenMediaVault web interface at /garage-webui-<name>/, never exposed directly.")
+        hint: _("Served through the OpenMediaVault web interface at /garage-webui-<name>/, never exposed directly.")
       - type: textInput
         name: webuiuser
         label: _("Web UI user name")

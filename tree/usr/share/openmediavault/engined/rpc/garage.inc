@@ -157,7 +157,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				"webenable" => false,
 				"webport" => $ports["webport"],
 				"webrootdomain" => "",
-				"adminenable" => true,
 				"adminport" => $ports["adminport"],
 				"dbengine" => "lmdb",
 				"compressionlevel" => 1,
@@ -305,11 +304,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 		}
 		$object->setAssoc($params);
-
-		if ($object->get("webuienable") && !$object->get("adminenable")) {
-			throw new \OMV\Exception(
-				gettext("The web UI requires the admin API to be enabled."));
-		}
 
 		// Storage layout. The storage folder holds the data and, unless a
 		// separate metadata folder is configured, the metadata database.
