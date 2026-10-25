@@ -30,7 +30,7 @@ unprivileged `garage` user with systemd sandboxing.
 ## Install
 
 ```sh
-apt install ./openmediavault-garage_0.1.0-1_all.deb
+apt install ./openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
 Requires the `garage` package (see the `garage-debian` repo). Then find the
@@ -66,7 +66,7 @@ Workflow per instance:
 ## Build
 
 ```sh
-./build.sh    # dist/openmediavault-garage_0.1.0-1_all.deb
+./build.sh    # dist/openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
 The package version comes from the top entry of `debian/changelog`.

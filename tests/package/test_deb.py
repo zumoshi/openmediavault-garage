@@ -26,8 +26,6 @@ def deb() -> Path:
     return debs[0]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="REVIEW 2.1: plugin is arch all but ships an amd64-only binary")
 def test_architecture_is_amd64(deb: Path) -> None:
     assert run("dpkg-deb", "-f", deb, "Architecture") == "amd64"
 
