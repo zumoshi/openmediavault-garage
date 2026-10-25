@@ -340,9 +340,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 		}
 
-		if ($isNew) {
-			$db->assertIsUnique($object, "name");
-		}
+		$db->assertIsUnique($object, "name", sprintf(
+			gettext("A Garage instance named '%s' already exists."),
+			$object->get("name")));
 		$db->set($object);
 		return $object->getAssoc();
 	}

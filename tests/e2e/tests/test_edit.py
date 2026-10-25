@@ -71,9 +71,6 @@ def test_noop_edit_keeps_server_owned_fields(page, cfg, ssh, make_instance):
         f"web UI env has no password hash after a no-op edit: {env}"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.5: the hint says the name cannot be changed, but the field "
-    "is editable"))
 def test_name_read_only_on_edit(page, cfg, make_instance):
     name, info = make_instance()
     ui.open_edit_form(page, cfg.host, info["uuid"], name)
@@ -81,8 +78,6 @@ def test_name_read_only_on_edit(page, cfg, make_instance):
         "the Name field is editable on the edit form"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.5: setInstance checks name uniqueness on create only"))
 def test_rename_onto_existing_name_rejected(page, cfg, ssh, rpc,
                                             make_instance):
     taken, _ = make_instance()

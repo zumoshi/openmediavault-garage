@@ -23,6 +23,7 @@ data:
         label: _("Name")
         hint: _("Lowercase letters, digits and dashes. Used in unit names and URLs, cannot be changed later.")
         value: ""
+        disabled: "{{ _routeConfig.data.editing | toboolean }}"
         validators:
           required: true
           pattern:
