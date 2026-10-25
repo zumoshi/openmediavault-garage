@@ -195,11 +195,6 @@
             "maxLength": 128,
             "default": ""
         },
-        "webuipasswordhash": {
-            "type": "string",
-            "maxLength": 128,
-            "default": ""
-        },
         "storageshareuuid": {
             "type": "string",
             "default": ""

@@ -9,8 +9,7 @@ import pytest
 from garage_tester import ui
 from garage_tester.rpc import RpcError
 
-SERVER_OWNED = ("rpcsecret", "admintoken", "webuipassword",
-                "webuipasswordhash", "webuiport")
+SERVER_OWNED = ("rpcsecret", "admintoken", "webuipassword", "webuiport")
 
 
 def _confdb_instance(ssh, uuid: str) -> dict:

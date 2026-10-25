@@ -45,7 +45,6 @@ def _webui_login_status(ssh, row: dict, password: str) -> str:
         "/api/auth/login")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="REVIEW 3.6")
 def test_webui_password_is_the_only_stored_secret(ssh, rpc, make_instance):
     """confdb keeps the web UI password and no hash of it. Re-applying
     leaves the web UI alone; a renewed password signs in and the old one

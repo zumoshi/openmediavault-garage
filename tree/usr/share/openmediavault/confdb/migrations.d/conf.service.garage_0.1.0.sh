@@ -6,7 +6,9 @@
 #
 # Garage owns its buckets, access keys and permissions, so the copies
 # earlier versions kept in confdb go. The admin API is always on, so the
-# switch goes too. Deleting a node that is already gone is a no-op.
+# switch goes too, and so does the stored hash of the web UI password,
+# which the deployment derives from the password. Deleting a node that is
+# already gone is a no-op.
 #
 # The first pre-release only recorded metadatashareuuid, with the metadata
 # at that folder's root. That is a split instance whose storage folder is
@@ -21,6 +23,7 @@ omv_config_delete "/config/services/garage/buckets"
 omv_config_delete "/config/services/garage/keys"
 omv_config_delete "/config/services/garage/mappings"
 omv_config_delete "/config/services/garage/instances/instance/adminenable"
+omv_config_delete "/config/services/garage/instances/instance/webuipasswordhash"
 
 xmlstarlet sel -t -m "/config/services/garage/instances/instance[string-length(storageshareuuid) != 36 and string-length(metadatashareuuid) = 36]" \
 	-v "uuid" -n \

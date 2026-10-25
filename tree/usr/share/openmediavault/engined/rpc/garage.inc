@@ -43,7 +43,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	// Generated on create, never taken from params. Only renewWebUiPassword
 	// rotates the web UI password afterwards.
 	private const SERVER_OWNED = ["rpcsecret", "admintoken", "webuipassword",
-		"webuipasswordhash", "webuiport"];
+		"webuiport"];
 
 	public function getName()
 	{
@@ -251,8 +251,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$params["rpcsecret"] = $this->generateSecret();
 			$params["admintoken"] = $this->generateSecret();
 			$params["webuipassword"] = $this->generatePassword();
-			$params["webuipasswordhash"] =
-				password_hash($params["webuipassword"], PASSWORD_BCRYPT);
 			$object = new \OMV\Config\ConfigObject("conf.service.garage.instance");
 		} else {
 			// On edit, a taken port is reported, not silently resolved.
@@ -384,8 +382,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$object = $db->get("conf.service.garage.instance", $params["uuid"]);
 		$password = $this->generatePassword();
 		$object->set("webuipassword", $password);
-		$object->set("webuipasswordhash",
-			password_hash($password, PASSWORD_BCRYPT));
 		$db->set($object);
 		return ["password" => $password];
 	}

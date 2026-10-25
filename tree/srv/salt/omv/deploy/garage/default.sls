@@ -182,15 +182,17 @@ bootstrap_garage_{{ name }}:
       - service: start_garage_{{ name }}
 
 {% if instance.webuienable %}
+{%- set webuienv = etcdir ~ '/' ~ name ~ '.webui.env' %}
 
 configure_garage_webui_env_{{ name }}:
   file.managed:
-    - name: {{ etcdir }}/{{ name }}.webui.env
+    - name: {{ webuienv }}
     - source:
       - salt://{{ tpldir }}/files/webui.env.j2
     - template: jinja
     - context:
         instance: {{ instance | json }}
+        passwordhash: {{ salt['cmd.run'](['/usr/bin/php', '/usr/share/openmediavault/garage/webui-password-hash.php', webuienv], stdin=instance.webuipassword) | json }}
     - user: root
     - group: garage
     - mode: '0640'

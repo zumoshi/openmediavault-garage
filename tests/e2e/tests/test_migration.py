@@ -1,6 +1,6 @@
 """Upgrading from pre-release versions: the confdb migration drops the
-confdb mirror of garage's buckets, keys and permissions and the admin API
-switch, fills in the storage share of rows that only name a metadata
+confdb mirror of garage's buckets, keys and permissions, the admin API
+switch and the stored web UI password hash, fills in the storage share of rows that only name a metadata
 share, and running it again changes nothing."""
 
 from xml.etree.ElementTree import canonicalize
@@ -13,7 +13,8 @@ MIGRATE = "omv-confdbadm migrate conf.service.garage 0.1.0"
 LEFTOVERS = ("/config/services/garage/buckets",
              "/config/services/garage/keys",
              "/config/services/garage/mappings",
-             "/config/services/garage/instances/instance/adminenable")
+             "/config/services/garage/instances/instance/adminenable",
+             "/config/services/garage/instances/instance/webuipasswordhash")
 
 
 def _config(ssh, xpath: str) -> str:
@@ -33,7 +34,7 @@ def _count(ssh, xpath: str) -> int:
                        "/etc/openmediavault/config.xml"))
 
 
-def test_migration_drops_mirror_and_admin_switch(ssh, rpc, make_instance):
+def test_migration_drops_obsolete_nodes(ssh, rpc, make_instance):
     name, info = make_instance()
     row = f"/config/services/garage/instances/instance[uuid='{info['uuid']}']"
     ssh.out(f"""{HELPERS}
@@ -46,7 +47,9 @@ def test_migration_drops_mirror_and_admin_switch(ssh, rpc, make_instance):
         omv_config_add_key /config/services/garage/buckets/bucket name gt-legacy
         omv_config_exists "{row}/adminenable" ||
             omv_config_add_key "{row}" adminenable 0
-        omv_config_update "{row}/adminenable" 0""")
+        omv_config_update "{row}/adminenable" 0
+        omv_config_exists "{row}/webuipasswordhash" ||
+            omv_config_add_key "{row}" webuipasswordhash x""")
 
     ssh.out(MIGRATE)
     once = _garage_config(ssh)
