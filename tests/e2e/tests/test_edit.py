@@ -93,9 +93,6 @@ def test_rename_onto_existing_name_rejected(page, cfg, ssh, rpc,
     assert len(names) == len(set(names)), f"duplicate names in confdb: {names}"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: edit-time port validation ignores collisions inside the "
-    "same instance"))
 def test_edit_rejects_port_used_twice_in_instance(page, cfg, rpc,
                                                   make_instance):
     name, info = make_instance()
@@ -135,9 +132,6 @@ def foreign_listener(ssh):
         ssh.run(f"kill {pid}", check=False)
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: edit-time port validation ignores ports held by other "
-    "services"))
 def test_edit_rejects_port_of_other_service(page, cfg, rpc, make_instance,
                                             foreign_listener):
     name, info = make_instance()

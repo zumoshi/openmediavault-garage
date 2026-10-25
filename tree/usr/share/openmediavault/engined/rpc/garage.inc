@@ -11,10 +11,14 @@
  */
 
 require_once("openmediavault/functions.inc");
+require_once("/usr/share/openmediavault/garage/lib/ports.php");
 
+use OMV\Garage\PortConflict;
 use OMV\Rpc\ServiceAbstract;
 use OMV\System\Process;
 use OMV\System\SystemCtl;
+
+use function OMV\Garage\portConflicts;
 
 class OMVRpcServiceGarage extends ServiceAbstract
 {
@@ -132,7 +136,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$newUuid = \OMV\Environment::get("OMV_CONFIGOBJECT_NEW_UUID");
 		if ($params["uuid"] === $newUuid) {
 			// Return defaults for the create dialog, with unused ports.
-			$ports = $this->computeSuggestedPorts();
+			$ports = $this->freePorts(self::DEFAULT_PORTS);
 			$assoc = [
 				"uuid" => $newUuid,
 				"enable" => true,
@@ -187,40 +191,36 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	public function suggestPorts($params, $context)
 	{
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
-		return $this->computeSuggestedPorts();
+		return $this->freePorts(self::DEFAULT_PORTS);
 	}
 
-	private function computeSuggestedPorts()
+	// Moves every taken port up to the next free one.
+	private function freePorts(array $ports): array
 	{
 		$db = \OMV\Config\Database::getInstance();
-		$used = $this->collectUsedPorts($db, null);
-		$used = array_merge($used, $this->collectListeningPorts());
-		$result = [];
-		foreach (self::DEFAULT_PORTS as $key => $default) {
-			$port = $default;
-			while (in_array($port, $used)) {
-				$port++;
-			}
-			$result[$key] = $port;
-			$used[] = $port;
+		$instancePorts = $this->collectUsedPorts($db, null);
+		$listening = $this->collectListeningPorts();
+		while ($conflicts = portConflicts($ports, $instancePorts, $listening)) {
+			$ports[array_key_first($conflicts)]++;
 		}
-		return $result;
+		return $ports;
+	}
+
+	private function instancePorts($object): array
+	{
+		$ports = [];
+		foreach (array_keys(self::DEFAULT_PORTS) as $key) {
+			$ports[$key] = $object->get($key);
+		}
+		return $ports;
 	}
 
 	private function collectUsedPorts($db, $excludeUuid)
 	{
 		$used = [];
-		$objects = $db->get("conf.service.garage.instance");
-		foreach ($objects as $objectv) {
-			if (!is_null($excludeUuid) &&
-				$objectv->get("uuid") === $excludeUuid) {
-				continue;
-			}
-			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
-				$port = $objectv->get($key);
-				if (!empty($port)) {
-					$used[] = intval($port);
-				}
+		foreach ($db->get("conf.service.garage.instance") as $objectv) {
+			if ($objectv->get("uuid") !== $excludeUuid) {
+				array_push($used, ...array_values($this->instancePorts($objectv)));
 			}
 		}
 		return $used;
@@ -228,22 +228,15 @@ class OMVRpcServiceGarage extends ServiceAbstract
 
 	private function collectListeningPorts()
 	{
-		$used = [];
 		$output = [];
-		// Parse the local port column of 'ss -tln', e.g.
-		// LISTEN 0 128 0.0.0.0:22 0.0.0.0:*
-		exec("export LANG=C; ss -tln 2>/dev/null | awk '{print $4}'", $output);
+		exec("ss -ltnH", $output);
+		$ports = [];
 		foreach ($output as $line) {
-			$pos = strrpos($line, ":");
-			if (false === $pos) {
-				continue;
-			}
-			$port = intval(substr($line, $pos + 1));
-			if ($port > 0) {
-				$used[] = $port;
-			}
+			// The local address, e.g. 0.0.0.0:22 or [::]:22.
+			$local = preg_split("/\s+/", $line)[3];
+			$ports[] = intval(substr($local, strrpos($local, ":") + 1));
 		}
-		return $used;
+		return $ports;
 	}
 
 	public function setInstance($params, $context)
@@ -260,19 +253,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			// create dialog pre-suggests unused ports, but a stale page or a
 			// race with another creation must not block a plain "next-next"
 			// workflow.
-			$suggested = $this->computeSuggestedPorts();
-			$used = array_merge(
-				$this->collectUsedPorts($db, null),
-				$this->collectListeningPorts()
-			);
-			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
-				$port = intval($params[$key] ?? $suggested[$key]);
-				while (in_array($port, $used)) {
-					$port++;
-				}
-				$params[$key] = $port;
-				$used[] = $port;
-			}
+			$params = $this->freePorts(array_merge(self::DEFAULT_PORTS,
+				array_intersect_key($params, self::DEFAULT_PORTS))) + $params;
 			$params["rpcsecret"] = $this->generateSecret();
 			$params["admintoken"] = $this->generateSecret();
 			$params["webuipassword"] = $this->generatePassword();
@@ -280,22 +262,26 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				password_hash($params["webuipassword"], PASSWORD_BCRYPT);
 			$object = new \OMV\Config\ConfigObject("conf.service.garage.instance");
 		} else {
-			// On edit, ports must not collide with other instances. Explicit
-			// conflicts are reported, not silently resolved. Fields the form
-			// does not post keep their stored value.
-			$used = $this->collectUsedPorts($db, $params["uuid"]);
-			foreach (array_keys(self::DEFAULT_PORTS) as $key) {
-				if (!isset($params[$key]) || $params[$key] === "" ||
-					is_null($params[$key])) {
-					continue;
-				}
-				if (in_array(intval($params[$key]), $used)) {
-					throw new \OMV\Exception(sprintf(
-						gettext("Port %d is already used by another Garage instance."),
-						$params[$key]));
-				}
-			}
+			// On edit, a taken port is reported, not silently resolved.
 			$object = $db->get("conf.service.garage.instance", $params["uuid"]);
+			$stored = $this->instancePorts($object);
+			$ports = array_merge($stored,
+				array_intersect_key($params, self::DEFAULT_PORTS));
+			$running = (new SystemCtl("garage@" . $object->get("name")))->isActive();
+			$conflicts = portConflicts($ports,
+				$this->collectUsedPorts($db, $params["uuid"]),
+				array_diff($this->collectListeningPorts(), $running ? $stored : []));
+			$field = array_key_first($conflicts);
+			if (!is_null($field)) {
+				throw new \OMV\Exception(sprintf(match ($conflicts[$field]) {
+					PortConflict::SameInstance =>
+						gettext("Port %d is used twice in this instance."),
+					PortConflict::OtherInstance =>
+						gettext("Port %d is already used by another Garage instance."),
+					PortConflict::OtherService =>
+						gettext("Port %d is already used by another service."),
+				}, $ports[$field]));
+			}
 		}
 
 		// Optional tuning fields fall back to the Garage defaults.
