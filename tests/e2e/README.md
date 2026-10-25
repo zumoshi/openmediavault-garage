@@ -24,10 +24,16 @@ The tests never install anything.
 - Removing a datastore keeps every object readable and revokes the
   datastore's ACL.
 - The web UI is reachable only with an OMV session.
-- Keys and buckets made directly against garage: imported once when the
-  details page loads its tabs at the same time, and usage shown for a
-  bucket without a global alias. The same bucket and key names on two
-  instances.
+- Buckets, access keys and permissions created, edited and deleted
+  through the details page, checked against garage.
+- Keys, buckets and permissions made or deleted directly against garage
+  show up once in the lists, also when the details page loads its tabs at
+  the same time. A bucket without a global alias is listed by its id with
+  its usage. Key secrets come only from the key's own page. The same bucket
+  and key names on two instances.
+- A stopped instance's bucket, key and permission calls fail at once and
+  say so.
+- The confdb migration from the version that mirrored garage's state.
 - An apply leaves hand-written garage instances alone, and one instance
   that fails to deploy does not stop the others from applying.
 

@@ -14,12 +14,15 @@ unprivileged `garage` user with systemd sandboxing.
 
 - N instances, each with:
   - N datastores, picked from OMV shared folders, each with a layout capacity
-  - N buckets with quotas and optional S3 website hosting
-  - N access keys (created or imported)
-  - a key-to-bucket permission mapping (read/write/owner)
-- Always-on listeners: S3 API (all interfaces) and internal RPC (loopback)
-- Checkboxes for the optional listeners: admin API (loopback) and website
-  hosting (all interfaces)
+  - buckets with quotas and optional S3 website hosting
+  - access keys (created or imported)
+  - per key and bucket read/write/owner permissions
+- Buckets, keys and permissions live only in garage. The plugin reads and
+  changes them through the instance's admin API, so changes made in the
+  web UI or by S3 clients show up at once and nothing can drift.
+- Always-on listeners: S3 API (all interfaces), internal RPC and admin API
+  (loopback)
+- Optional website hosting listener (all interfaces)
 - Unused ports are pre-suggested when creating an instance; duplicate ports
   on create are silently resolved to the next free port
 - Optional vendored community web UI (khairul169/garage-webui, MIT), disabled
@@ -44,7 +47,8 @@ Workflow per instance:
    deploy renders `/etc/garage/<name>.toml`, the systemd drop-in, ACLs, and
    starts `garage@<name>`, then bootstraps the single-node layout with the
    aggregated datastore capacity.
-4. Create buckets, keys and access mappings (requires the instance running).
+4. Create buckets, keys and permissions in the instance's details view.
+   These take effect at once in the running instance, with no apply.
 5. Point S3 clients at `http://<omv>:<s3port>` with the region and a key.
 
 ## Security model
