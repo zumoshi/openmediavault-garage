@@ -88,9 +88,6 @@ def _webui_cookie(ssh, uuid: str) -> str:
     return "; ".join(f"{c[5]}={c[6]}" for c in cookies)
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: nginx proxies /garage-webui-<name>/ to anyone who can "
-    "reach OMV; the web UI's own login is the only gate"))
 def test_webui_requires_omv_session(cfg, webui_instance):
     name, _ = webui_instance
     url = f"http://{cfg.host}/garage-webui-{name}/"
@@ -99,9 +96,6 @@ def test_webui_requires_omv_session(cfg, webui_instance):
         f"GET {url} without an OMV session got {status}: {body[:200]}"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: the web UI API holds the admin token and nginx serves it "
-    "to anyone with a web UI cookie, OMV session or not"))
 def test_webui_api_requires_omv_session(cfg, ssh, webui_instance):
     """Every /api/ path already answers 401 to a caller with no cookie at
     all, from the web UI itself, so that alone proves nothing. A caller
@@ -139,9 +133,6 @@ def non_admin_cookie(cfg, rpc):
     rpc.call("UserMgmt", "deleteUser", {"name": name})
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: nginx proxies /garage-webui-<name>/ to any caller, so an "
-    "OMV session without the administrator role reaches the web UI too"))
 @pytest.mark.parametrize("path", ["", "api/buckets"])
 def test_webui_rejects_non_admin_omv_session(cfg, webui_instance,
                                              non_admin_cookie, path):

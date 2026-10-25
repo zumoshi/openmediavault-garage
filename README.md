@@ -95,8 +95,9 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
   ACLs, units, nginx locations, orphan cleanup
 - `tree/usr/share/openmediavault/garage/bootstrap-instance.php` - idempotent
   single-node layout bootstrap (wait, assign, apply, converge capacity)
-- `tree/usr/share/openmediavault/garage/sso/` (installed to
-  `/var/www/openmediavault/garage-sso/`) - one-click web UI sign-in page
+- `tree/var/www/openmediavault/garage-sso/` - one-click web UI sign-in page,
+  and `auth.php`, the nginx `auth_request` check that lets only OMV admin
+  sessions through to the web UI
 - `tree/usr/lib/systemd/system/omv-garage-webui@.service` - web UI template
 - `debian/changelog` - package version and history, shipped as
   `changelog.Debian.gz`
