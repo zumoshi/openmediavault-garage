@@ -2,6 +2,7 @@
 extra datastores, disabled instances, a share path with a space, and
 deletion cleanup and undo."""
 
+import json
 import re
 import secrets
 
@@ -9,6 +10,7 @@ import pytest
 from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
+from garage_tester.ssh import shquote
 
 
 def test_webui_enabled_and_sso(page, cfg, ssh, rpc, make_instance):
@@ -31,6 +33,43 @@ def test_webui_enabled_and_sso(page, cfg, ssh, rpc, make_instance):
     assert "dashboard" in body and "healthy" in body, \
         f"web UI did not load an authenticated dashboard: {body[:200]}"
     popup.close()
+
+
+def _webui_login_status(ssh, row: dict, password: str) -> str:
+    """HTTP status of a web UI sign-in on loopback with `password`."""
+    login = json.dumps({"username": row["webuiuser"], "password": password})
+    return ssh.out(
+        "curl -s -o /dev/null -w '%{http_code}' "
+        f"-H 'Content-Type: application/json' -d {shquote(login)} "
+        f"http://127.0.0.1:{row['webuiport']}/garage-webui-{row['name']}"
+        "/api/auth/login")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="REVIEW 3.6")
+def test_webui_password_is_the_only_stored_secret(ssh, rpc, make_instance):
+    """confdb keeps the web UI password and no hash of it. Re-applying
+    leaves the web UI alone; a renewed password signs in and the old one
+    no longer does."""
+    name, info = make_instance(webui=True)
+    unit = f"omv-garage-webui@{name}"
+    env_file = f"/etc/garage/{name}.webui.env"
+    row = next(i for i in ssh.confdb("conf.service.garage.instance")
+               if i["uuid"] == info["uuid"])
+    assert "webuipasswordhash" not in row, "confdb stores a password hash"
+
+    env, pid = ssh.read_file(env_file), ssh.unit_state(unit)["MainPID"]
+    rpc.apply(["garage"])
+    assert (ssh.read_file(env_file), ssh.unit_state(unit)["MainPID"]) == \
+        (env, pid), "an apply without changes rewrote the env or restarted"
+
+    old = row["webuipassword"]
+    new = rpc.call("Garage", "renewWebUiPassword",
+                   {"uuid": info["uuid"]})["password"]
+    rpc.apply(["garage"])
+    ssh.wait_unit_running(unit)
+    assert (_webui_login_status(ssh, row, new),
+            _webui_login_status(ssh, row, old)) == ("200", "401"), \
+        "sign-in status with the (renewed, old) password"
 
 
 def test_webui_disabled_by_default(ssh, make_instance):
