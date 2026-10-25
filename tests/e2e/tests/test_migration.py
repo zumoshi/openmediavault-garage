@@ -1,6 +1,9 @@
-"""Upgrading from a version that mirrored garage's buckets, keys and
-permissions in confdb and had an admin API switch: the confdb migration
-drops both, and running it again changes nothing."""
+"""Upgrading from pre-release versions: the confdb migration drops the
+confdb mirror of garage's buckets, keys and permissions and the admin API
+switch, fills in the storage share of rows that only name a metadata
+share, and running it again changes nothing."""
+
+import pytest
 
 from garage_tester import instance
 
@@ -54,3 +57,48 @@ def test_migration_drops_mirror_and_admin_switch(ssh, rpc, make_instance):
     assert admin.get("api_bind_addr") == f"127.0.0.1:{port}", \
         f"[admin] of {name} after the migration: {admin}"
     instance.wait_health(ssh, port)
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason="REVIEW 3.2")
+def test_migration_fills_storage_of_prerelease_row(ssh, rpc, make_instance,
+                                                   shares):
+    """A pre-release row names only a metadata share. The migration turns
+    it into a split instance whose storage share is that same share, so it
+    deploys where the pre-release put it: metadata at the share root, data
+    on the datastores. Other rows are left alone. Without a datastore the
+    render hits REVIEW 2.7, which test_split_storage covers."""
+    name, info = make_instance(extra_datastore=True)
+    uuid = info["uuid"]
+    share_uuid = shares.uuid_by_name(info["storage_share"])
+    row = f"/config/services/garage/instances/instance[uuid='{uuid}']"
+    others = f"/config/services/garage/instances/instance[uuid!='{uuid}']"
+    ssh.out(f"""{HELPERS}
+        omv_config_delete "{row}/metadatashareuuid"
+        omv_config_delete "{row}/storageshareuuid"
+        omv_config_delete "{row}/storagesplit"
+        omv_config_add_key "{row}" metadatashareuuid {share_uuid}""")
+    others_before = ssh.out(f"xmlstarlet sel -t -c \"{others}\" "
+                            "/etc/openmediavault/config.xml")
+
+    ssh.out(MIGRATE)
+    once = _garage_config(ssh)
+    ssh.out(MIGRATE)
+    twice = _garage_config(ssh)
+
+    migrated = next(i for i in ssh.confdb("conf.service.garage.instance")
+                    if i["uuid"] == uuid)
+    assert (migrated["storageshareuuid"], migrated["storagesplit"]) == \
+        (share_uuid, True), f"migrated row: {migrated}"
+    assert once == twice, "a second migration run changed the config"
+    assert ssh.out(f"xmlstarlet sel -t -c \"{others}\" "
+                   "/etc/openmediavault/config.xml") == others_before, \
+        "the migration changed rows that already name a storage share"
+
+    rpc.apply(["garage"])
+    ssh.wait_unit_running(f"garage@{name}")
+    toml = instance.read_instance_toml(ssh, name)
+    paths = (toml["metadata_dir"],
+             [d["path"].rstrip("/") for d in toml["data_dir"]])
+    assert paths == (shares.path(info["storage_share"]) + "/",
+                     [shares.path(info["datastore_share"])]), \
+        f"{name}.toml: {toml}"
