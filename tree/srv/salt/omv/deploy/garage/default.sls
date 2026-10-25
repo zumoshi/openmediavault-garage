@@ -100,7 +100,7 @@ configure_garage_dirs_{{ name }}:
   file.directory:
     - names:
 {%- for d in entry.dirs %}
-      - {{ d }}
+      - {{ d | json }}
 {%- endfor %}
     - user: garage
     - group: garage
@@ -152,11 +152,11 @@ configure_garage_acl_{{ name }}:
   cmd.run:
     - names:
 {%- for path in entry.paths %}
-      - setfacl -m u:garage:rwX {{ path }}
+      - {{ ('setfacl -m u:garage:rwX ' ~ path | quote) | json }}
 {%- endfor %}
     - unless:
 {%- for path in entry.paths %}
-      - getfacl -p {{ path }} | grep -q '^user:garage:rw'
+      - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:rw'") | json }}
 {%- endfor %}
 
 garage_systemd_reload_{{ name }}:
@@ -179,7 +179,7 @@ start_garage_{{ name }}:
 
 bootstrap_garage_{{ name }}:
   cmd.run:
-    - name: /usr/bin/php /usr/share/openmediavault/garage/bootstrap-instance.php {{ name }} {{ entry.capacitybytes }} {{ entry.datadirs | join(' ') }}
+    - name: {{ (['/usr/bin/php', '/usr/share/openmediavault/garage/bootstrap-instance.php', name, entry.capacitybytes | string] + entry.datadirs) | map('quote') | join(' ') | json }}
     - require:
       - service: start_garage_{{ name }}
 
@@ -267,9 +267,9 @@ purge_orphan_garage_webui_{{ name }}:
 purge_orphan_garage_files_{{ name }}:
   cmd.run:
     - name: |
-        rm -f {{ etcdir }}/{{ name }}.toml {{ etcdir }}/{{ name }}.rpc_secret {{ etcdir }}/{{ name }}.webui.env
-        rm -f {{ nginxd }}/garage-webui-{{ name }}.conf
-        rm -rf /etc/systemd/system/garage@{{ name }}.service.d
+        rm -f {{ (etcdir ~ '/' ~ name ~ '.toml') | quote }} {{ (etcdir ~ '/' ~ name ~ '.rpc_secret') | quote }} {{ (etcdir ~ '/' ~ name ~ '.webui.env') | quote }}
+        rm -f {{ (nginxd ~ '/garage-webui-' ~ name ~ '.conf') | quote }}
+        rm -rf {{ ('/etc/systemd/system/garage@' ~ name ~ '.service.d') | quote }}
         systemctl daemon-reload
     - watch_in:
       - cmd: garage_nginx_reload

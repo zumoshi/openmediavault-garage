@@ -4,19 +4,19 @@
 {% if split %}
 {%   if metapath == storpath %}
 {#- Legacy instance: metadata lives at the shared folder root. #}
-metadata_dir = "{{ metapath }}"
+metadata_dir = {{ metapath | json }}
 {%   else %}
-metadata_dir = "{{ metabase }}/meta"
+metadata_dir = {{ (metabase ~ '/meta') | json }}
 {%   endif %}
 {% else %}
-metadata_dir = "{{ storbase }}/meta"
+metadata_dir = {{ (storbase ~ '/meta') | json }}
 {% endif %}
-db_engine = "{{ instance.dbengine }}"
+db_engine = {{ instance.dbengine | json }}
 {% if instance.snapshotsshareuuid | length == 36 %}
-metadata_snapshots_dir = "{{ salt['omv_conf.get_sharedfolder_path'](instance.snapshotsshareuuid) }}"
+metadata_snapshots_dir = {{ salt['omv_conf.get_sharedfolder_path'](instance.snapshotsshareuuid) | json }}
 {% endif %}
 {% if instance.snapshotinterval | length > 0 %}
-metadata_auto_snapshot_interval = "{{ instance.snapshotinterval }}"
+metadata_auto_snapshot_interval = {{ instance.snapshotinterval | json }}
 {% endif %}
 metadata_fsync = {{ 'true' if instance.metadatafsync | to_bool else 'false' }}
 data_fsync = {{ 'true' if instance.datafsync | to_bool else 'false' }}
@@ -24,15 +24,15 @@ disable_scrub = {{ 'true' if instance.disablescrub | to_bool else 'false' }}
 
 replication_factor = 1
 
-rpc_bind_addr = "127.0.0.1:{{ instance.rpcport }}"
-rpc_secret_file = "/etc/garage/{{ instance.name }}.rpc_secret"
+rpc_bind_addr = {{ ('127.0.0.1:' ~ instance.rpcport) | json }}
+rpc_secret_file = {{ ('/etc/garage/' ~ instance.name ~ '.rpc_secret') | json }}
 
 compression_level = {% if instance.compressiondisable %}"none"{% else %}{{ instance.compressionlevel }}{% endif %}
 {% if instance.blocksize | length > 0 %}
-block_size = "{{ instance.blocksize }}"
+block_size = {{ instance.blocksize | json }}
 {% endif %}
 {% if instance.blockrambuffermax | length > 0 %}
-block_ram_buffer_max = "{{ instance.blockrambuffermax }}"
+block_ram_buffer_max = {{ instance.blockrambuffermax | json }}
 {% endif %}
 {% if instance.blockmaxconcurrentreads %}
 block_max_concurrent_reads = {{ instance.blockmaxconcurrentreads }}
@@ -41,7 +41,7 @@ block_max_concurrent_reads = {{ instance.blockmaxconcurrentreads }}
 block_max_concurrent_writes_per_request = {{ instance.blockmaxconcurrentwrites }}
 {% endif %}
 {% if instance.lmdbmapsize | length > 0 %}
-lmdb_map_size = "{{ instance.lmdbmapsize }}"
+lmdb_map_size = {{ instance.lmdbmapsize | json }}
 {% endif %}
 
 {#- Data locations: the storage subfolder plus every extra datastore. #}
@@ -57,25 +57,25 @@ lmdb_map_size = "{{ instance.lmdbmapsize }}"
 {%- endif %}
 data_dir = [
 {%- for ds in datapaths %}
-  { path = "{{ ds.path }}"{{ ', capacity = "' ~ ds.capacity ~ 'GiB"' if ds.capacity > 0 else '' }} }{{ "," if not loop.last else "" }}
+  { path = {{ ds.path | json }}{{ (', capacity = ' ~ ((ds.capacity ~ 'GiB') | json)) if ds.capacity > 0 else '' }} }{{ "," if not loop.last else "" }}
 {%- endfor %}
 ]
 
 [s3_api]
-s3_region = "{{ instance.s3region }}"
-api_bind_addr = "[::]:{{ instance.s3port }}"
+s3_region = {{ instance.s3region | json }}
+api_bind_addr = {{ ('[::]:' ~ instance.s3port) | json }}
 {% if instance.s3rootdomain | length > 0 %}
-root_domain = "{{ instance.s3rootdomain }}"
+root_domain = {{ instance.s3rootdomain | json }}
 {% endif %}
 {% if instance.adminenable %}
 [admin]
-api_bind_addr = "127.0.0.1:{{ instance.adminport }}"
-admin_token = "{{ instance.admintoken }}"
+api_bind_addr = {{ ('127.0.0.1:' ~ instance.adminport) | json }}
+admin_token = {{ instance.admintoken | json }}
 {% endif %}
 {% if instance.webenable %}
 [s3_web]
-bind_addr = "[::]:{{ instance.webport }}"
+bind_addr = {{ ('[::]:' ~ instance.webport) | json }}
 {% if instance.webrootdomain | length > 0 %}
-root_domain = "{{ instance.webrootdomain }}"
+root_domain = {{ instance.webrootdomain | json }}
 {% endif %}
 {% endif %}

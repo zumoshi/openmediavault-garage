@@ -116,9 +116,6 @@ def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
         "storage ACL was not revoked"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.8: Salt and the unit drop-in use the share path unquoted, so "
-    "a path with a space breaks deployment"))
 def test_share_path_with_space(ssh, shares, make_instance, s3_setup):
     share = f"gt{secrets.token_hex(3)}"
     shares.create(share, reldirpath=f"{share} with space/")

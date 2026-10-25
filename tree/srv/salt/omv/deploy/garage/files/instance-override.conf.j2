@@ -1,7 +1,13 @@
 {{ pillar['headers']['multiline'] -}}
+{#- systemd splits these lists on spaces and expands % specifiers, so each
+    path is double-quoted with \, " and % escaped. #}
+{%- set quoted = [] %}
+{%- for path in paths %}
+{%- set _ = quoted.append('"' ~ path | replace('\\', '\\\\') | replace('"', '\\"') | replace('%', '%%') ~ '"') %}
+{%- endfor -%}
 [Unit]
-RequiresMountsFor={{ paths | join(' ') }}
+RequiresMountsFor={{ quoted | join(' ') }}
 
 [Service]
 Environment=RUST_LOG=garage={{ instance.loglevel }}
-ReadWritePaths={{ paths | join(' ') }}
+ReadWritePaths={{ quoted | join(' ') }}
