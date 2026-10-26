@@ -55,16 +55,20 @@ def shares(rpc, ssh, cfg):
 def make_instance(page, cfg, rpc, ssh, shares):
     """Create an instance through the web UI, apply, and register cleanup.
 
-    Pass `storage_share` to use an existing share instead of a new one.
-    Returns (name, info) where info carries the storage share name, the
-    meta share name when split, the datastore share name when requested,
-    and the instance uuid."""
+    Pass `storage_share` to use an existing share instead of a new one. An
+    instance with a datastore gets a 20 GiB storage folder capacity and a
+    5 GiB datastore. A split instance keeps its data on datastores only,
+    so it needs `extra_datastore` and is enabled once it has one. Returns
+    (name, info) where info carries the storage share name, the meta share
+    name when split, the datastore share name when requested, and the
+    instance uuid."""
     created: list[str] = []
 
     def _make(*, enabled: bool = True, webui: bool = False,
               split: bool = False, ports: dict | None = None,
               extra_datastore: bool = False,
               storage_share: str | None = None) -> tuple[str, dict]:
+        assert extra_datastore or not split, "a split instance needs a datastore"
         suffix = secrets.token_hex(3)
         name = f"gt{suffix}"
         storage_share = storage_share or shares.create(f"gt{suffix}a")
@@ -72,18 +76,24 @@ def make_instance(page, cfg, rpc, ssh, shares):
         ds_share = shares.create(f"gt{suffix}c") if extra_datastore else None
         ui.goto_instances(page, cfg.host)
         ui.create_instance(
-            page, name, storage_share, enabled=enabled, webui=webui,
-            split_meta_share=meta_share, ports=ports)
+            page, name, storage_share, enabled=enabled and not split,
+            webui=webui, split_meta_share=meta_share, ports=ports,
+            storage_capacity=20 if extra_datastore and not split else None)
         created.append(name)
         ui.apply_via_ui(page)
-        if enabled:
+        if enabled and not split:
             ssh.wait_unit_running(f"garage@{name}")
         if extra_datastore:
             uuid = rpc.instance_uuid(name)
             rpc.call("Garage", "setDatastore", {
                 "uuid": NEW_UUID, "instanceuuid": uuid,
                 "shareuuid": shares.uuid_by_name(ds_share), "capacity": 5})
+            if split and enabled:
+                params = rpc.call("Garage", "getInstance", {"uuid": uuid})
+                rpc.call("Garage", "setInstance", {**params, "enable": True})
             rpc.apply(["garage"])
+            if enabled:
+                ssh.wait_unit_running(f"garage@{name}")
         return name, {"storage_share": storage_share,
                       "meta_share": meta_share,
                       "datastore_share": ds_share,

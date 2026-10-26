@@ -82,6 +82,7 @@ def create_instance(
     webui: bool = False,
     split_meta_share: str | None = None,
     ports: dict[str, int] | None = None,
+    storage_capacity: int | None = None,
 ) -> None:
     """Fill the create form and save. Ports keys use the form labels."""
     page.get_by_role("button", name="Create").click()
@@ -91,6 +92,9 @@ def create_instance(
     name_field(page).fill(name)
     page.get_by_role("combobox", name="Storage shared folder").click()
     _pick_option(page, storage_share)
+    if storage_capacity is not None:
+        page.get_by_role("spinbutton", name="Storage folder capacity (GiB)").fill(
+            str(storage_capacity))
     for label, port in (ports or {}).items():
         page.get_by_role("spinbutton", name=label).fill(str(port))
     if webui:

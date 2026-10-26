@@ -24,6 +24,7 @@ set -e
 #           <enable>0|1</enable>
 #           <storageshareuuid>...</storageshareuuid>
 #           <storagesplit>0|1</storagesplit>
+#           <storagecapacity>0</storagecapacity>
 #           <name>...</name>
 #           <s3port>3900</s3port>
 #           <rpcport>3901</rpcport>
@@ -61,7 +62,7 @@ set -e
 #           <uuid>...</uuid>
 #           <instanceuuid>...</instanceuuid>
 #           <shareuuid>...</shareuuid>
-#           <capacity>0</capacity>
+#           <capacity>1</capacity>
 #         </datastore>
 #       </datastores>
 #     </garage>

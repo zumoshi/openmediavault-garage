@@ -50,6 +50,20 @@ data:
               prop: name
         validators:
           required: true
+      - type: numberInput
+        name: storagecapacity
+        label: _("Storage folder capacity (GiB)")
+        hint: _("Needed once the instance has datastores. Garage spreads new data over the storage folder and the datastores in proportion to their capacities. It is not a size limit.")
+        value: 0
+        validators:
+          min: 0
+          max: 100000000
+        modifiers:
+          - type: visible
+            constraint:
+              operator: falsy
+              arg0:
+                prop: storagesplit
       - type: divider
         title: _("Ports")
       - type: numberInput

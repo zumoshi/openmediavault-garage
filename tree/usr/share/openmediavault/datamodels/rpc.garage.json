@@ -216,6 +216,13 @@
                 },
                 "storagesplit": {
                     "type": "boolean"
+                },
+                "storagecapacity": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 0
                 }
             }
         }
@@ -240,8 +247,8 @@
                     "required": true
                 },
                 "capacity": {
-                    "type": "number",
-                    "minimum": 0,
+                    "type": "integer",
+                    "minimum": 1,
                     "required": true
                 }
             }

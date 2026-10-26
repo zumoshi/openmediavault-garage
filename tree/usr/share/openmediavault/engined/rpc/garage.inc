@@ -13,6 +13,7 @@
 require_once("openmediavault/functions.inc");
 require_once("/usr/share/openmediavault/garage/lib/live.php");
 require_once("/usr/share/openmediavault/garage/lib/ports.php");
+require_once("/usr/share/openmediavault/garage/lib/render.php");
 
 use OMV\Garage\PortConflict;
 use OMV\Rpc\ServiceAbstract;
@@ -26,6 +27,7 @@ use function OMV\Garage\bucketSettings;
 use function OMV\Garage\permissionChanges;
 use function OMV\Garage\permissionRows;
 use function OMV\Garage\portConflicts;
+use function OMV\Garage\storageError;
 
 use const OMV\Garage\PERMISSIONS;
 
@@ -154,6 +156,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				"compressionlevel" => 1,
 				"compressiondisable" => false,
 				"snapshotinterval" => "",
+				"storagecapacity" => 0,
 				"metadatashareuuid" => "",
 				"snapshotsshareuuid" => "",
 				"metadatafsync" => false,
@@ -272,9 +275,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 		}
 
-		// Optional tuning fields fall back to the Garage defaults.
+		// Optional fields fall back to their defaults.
 		foreach (["blockmaxconcurrentreads" => 16,
-			"blockmaxconcurrentwrites" => 3] as $field => $fallback) {
+			"blockmaxconcurrentwrites" => 3, "storagecapacity" => 0]
+			as $field => $fallback) {
 			if (array_key_exists($field, $params) && is_null($params[$field])) {
 				$params[$field] = $fallback;
 			}
@@ -308,6 +312,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 					gettext("The storage shared folder is already used by another Garage instance."));
 			}
 		}
+		$this->assertDeployable($object,
+			$isNew ? 0 : count($this->datastores($db, $params["uuid"])));
 
 		$db->assertIsUnique($object, "name", sprintf(
 			gettext("A Garage instance named '%s' already exists."),
@@ -444,10 +450,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.garage.setdatastore");
 		$db = \OMV\Config\Database::getInstance();
-		$this->assertInstanceExists($db, $params["instanceuuid"]);
-		$storage = $db->getAssoc("conf.service.garage.instance",
-			$params["instanceuuid"]);
-		if ($storage["storageshareuuid"] === $params["shareuuid"]) {
+		$instance = $db->get("conf.service.garage.instance", $params["instanceuuid"]);
+		if ($instance->get("storageshareuuid") === $params["shareuuid"]) {
 			throw new \OMV\Exception(
 				gettext("This shared folder is the storage folder of the instance. Pick another one."));
 		}
@@ -456,6 +460,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		if ($object->isNew()) {
 			$db->assertIsUnique($object, "shareuuid");
 		}
+		$this->assertDeployable($instance,
+			count($this->datastores($db, $params["instanceuuid"])) +
+				($object->isNew() ? 1 : 0));
 		$db->set($object);
 		return $object->getAssoc();
 	}
@@ -466,6 +473,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodParams($params, "rpc.common.objectuuid");
 		$db = \OMV\Config\Database::getInstance();
 		$object = $db->get("conf.service.garage.datastore", $params["uuid"]);
+		$instanceUuid = $object->get("instanceuuid");
+		$this->assertDeployable(
+			$db->get("conf.service.garage.instance", $instanceUuid),
+			count($this->datastores($db, $instanceUuid)) - 1);
 		$db->delete($object);
 		return $object->getAssoc();
 	}
@@ -724,11 +735,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	// Helpers
 	// ------------------------------------------------------------------
 
-	private function assertInstanceExists($db, $uuid)
-	{
-		return $db->get("conf.service.garage.instance", $uuid);
-	}
-
 	private function getSharedFolderPath($db, $shareUuid)
 	{
 		try {
@@ -832,6 +838,16 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			fn($share) => strlen($share) === 36),
 			array_map(fn($datastore) => $datastore->get("shareuuid"),
 				$this->datastores($db, $instance->get("uuid"))));
+	}
+
+	// An enabled instance must render: Salt deploys it on the next apply.
+	private function assertDeployable($instance, int $datastores): void
+	{
+		$error = storageError($instance->get("storagesplit"),
+			$instance->get("storagecapacity"), $datastores);
+		if ($instance->get("enable") && !is_null($error)) {
+			throw new \OMV\Exception(gettext($error->message()));
+		}
 	}
 
 	private function datastores($db, string $instanceUuid): array

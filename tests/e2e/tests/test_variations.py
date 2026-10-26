@@ -80,9 +80,6 @@ def test_webui_disabled_by_default(ssh, make_instance):
     assert not ssh.unit_active(f"omv-garage-webui@{name}")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.7: with a separate metadata folder and no datastore, the "
-    "template renders data_dir without a capacity and garage never starts"))
 def test_split_storage(page, cfg, ssh, shares, make_instance, s3_setup):
     name, info = make_instance(split=True, extra_datastore=True)
     toml = instance.read_instance_toml(ssh, name)
@@ -97,10 +94,6 @@ def test_split_storage(page, cfg, ssh, shares, make_instance, s3_setup):
                   conn["secret"], conn["bucket"], b"split storage works")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.7: an enabled instance with a separate metadata folder and no "
-    "datastore is saved, and its apply fails because garage has no data "
-    "folder"))
 def test_split_without_datastore_is_rejected(rpc, shares):
     suffix = secrets.token_hex(3)
     name = f"gt{suffix}"

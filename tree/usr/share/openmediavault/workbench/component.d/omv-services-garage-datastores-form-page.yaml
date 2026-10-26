@@ -29,7 +29,7 @@ data:
       - type: numberInput
         name: capacity
         label: _("Capacity (GiB)")
-        hint: _("Storage capacity assigned to this datastore in the Garage layout.")
+        hint: _("Garage spreads new data over the data folders in proportion to their capacities. It is not a size limit.")
         value: 10
         validators:
           required: true
