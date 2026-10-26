@@ -6,12 +6,12 @@ import secrets
 
 import pytest
 
-from garage_tester import ui
+from garage_tester import instance, ui
 from garage_tester.ssh import shquote
 
 HANDMADE_TOML = """\
-metadata_dir = "/var/lib/garage/{name}/meta"
-data_dir = "/var/lib/garage/{name}/data"
+metadata_dir = "{path}/meta"
+data_dir = "{path}/data"
 db_engine = "lmdb"
 replication_factor = 1
 rpc_bind_addr = "127.0.0.1:3991"
@@ -29,19 +29,24 @@ Environment=RUST_LOG=garage=debug
 
 
 @pytest.fixture()
-def handmade_instance(ssh):
+def handmade_instance(ssh, shares):
     """A garage instance configured by hand, as the garage-debian README
-    describes: a toml and a unit drop-in, never started. Its name does not
-    look like the suite's, so it stands for the admin's own instance."""
+    describes: a toml and a unit drop-in, never started, keeping its data
+    in an OMV shared folder that grants the garage user an ACL. Its name
+    does not look like the suite's, so it stands for the admin's own
+    instance."""
     name = f"handmade{secrets.token_hex(3)}"
-    files = {f"/etc/garage/{name}.toml": HANDMADE_TOML.format(name=name),
+    path = shares.path(shares.create(f"gt{secrets.token_hex(3)}a"))
+    files = {f"/etc/garage/{name}.toml": HANDMADE_TOML.format(name=name,
+                                                              path=path),
              f"/etc/systemd/system/garage@{name}.service.d/override.conf":
                  HANDMADE_DROP_IN}
     try:
-        for path, content in files.items():
-            ssh.run(f"mkdir -p $(dirname {path}) && cat > {path} <<'EOF'\n"
+        for file, content in files.items():
+            ssh.run(f"mkdir -p $(dirname {file}) && cat > {file} <<'EOF'\n"
                     f"{content}EOF")
-        yield files
+        ssh.run(f"setfacl -m u:garage:rwx {shquote(path)}")
+        yield files, path
     finally:
         ssh.run(f"rm -rf /etc/garage/{name}.toml "
                 f"/etc/systemd/system/garage@{name}.service.d && "
@@ -50,13 +55,17 @@ def handmade_instance(ssh):
 
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
     "REVIEW 1.4: apply purges every /etc/garage/*.toml that is not in "
-    "confdb, and its unit drop-in"))
+    "confdb, and its unit drop-in, and revokes the garage ACL from every "
+    "shared folder no plugin instance uses"))
 def test_apply_keeps_handmade_instance(ssh, rpc, handmade_instance):
+    files, path = handmade_instance
     rpc.apply(["garage"])
-    kept = {path: ssh.file_exists(path) and ssh.read_file(path) == content
-            for path, content in handmade_instance.items()}
+    kept = {file: ssh.file_exists(file) and ssh.read_file(file) == content
+            for file, content in files.items()}
     assert all(kept.values()), \
         f"a garage apply removed or changed hand-written files: {kept}"
+    assert instance.garage_acl(ssh, path), \
+        f"a garage apply revoked the garage ACL on {path}"
 
 
 @pytest.fixture()
