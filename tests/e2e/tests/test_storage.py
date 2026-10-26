@@ -89,6 +89,71 @@ def test_datastore_removal_revokes_acl(ssh, rpc, shares, make_instance):
         f"{ds_path} still grants u:garage after its datastore was removed"
 
 
+def _rebalances(ssh, name: str) -> list[dict]:
+    workers = instance.garage_json(ssh, name, "ListWorkers", {
+        "node": "self", "body": {"busyOnly": False}})["success"]
+    return [w for node in workers.values() for w in node
+            if w["name"] == "Block rebalance worker"]
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 1.2: deleteDatastore removes the row at once, there is no "
+    "drain to resume after a restart"))
+def test_datastore_drain_resumes_after_a_garage_restart(
+        ssh, rpc, shares, make_instance, s3_setup):
+    """The rebalance that drains a datastore lives in garage's memory. A
+    restart that is not an apply, like a reboot, must start it again."""
+    name, info = make_instance(extra_datastore=True)
+    conn = s3_setup(name, info["uuid"])
+    client = s3.client(conn["endpoint"], conn["key_id"], conn["secret"])
+    digests = s3.put_random_objects(client, conn["bucket"], 8, OBJECT_SIZE)
+    ds_path = shares.path(info["datastore_share"])
+    on_datastore = _block_files(ssh, ds_path)
+    assert on_datastore > 0, f"no block of 8 objects is on {ds_path}"
+    [uuid] = _datastore_uuids(rpc, info["uuid"])
+    unit = f"garage@{name}"
+
+    # Garage cannot write to the storage folder's data directory, so the
+    # rebalance started by the apply moves nothing and gives up.
+    data_dirs = shquote(shares.path(info["storage_share"]) + "/data")
+    ssh.out(f"find {data_dirs} -type d -exec chmod u-w {{}} +")
+    try:
+        rpc.call("Garage", "deleteDatastore", {"uuid": uuid})
+        rpc.apply(["garage"])
+        ssh.wait_unit_running(unit)
+        assert uuid in _datastore_uuids(rpc, info["uuid"]), \
+            "the datastore row went before its data was moved"
+        deadline = time.time() + 180
+        while not any(w["state"] == "done" for w in _rebalances(ssh, name)):
+            assert time.time() < deadline, \
+                f"rebalance not done after 180s: {_rebalances(ssh, name)}"
+            time.sleep(3)
+        assert _block_files(ssh, ds_path) == on_datastore, \
+            "blocks moved although the storage folder was not writable"
+    finally:
+        ssh.out(f"find {data_dirs} -type d -exec chmod u+w {{}} +")
+
+    ssh.out(f"systemctl restart {unit}")
+    ssh.wait_unit_running(unit)
+    deadline = time.time() + 180
+    while True:
+        try:
+            rpc.call("Garage", "deleteDatastore", {"uuid": uuid})
+            break
+        except RpcError as e:
+            assert time.time() < deadline, (
+                f"datastore not removable 180s after the restart: {e}; "
+                f"{_block_files(ssh, ds_path)} block files left")
+            time.sleep(5)
+    rpc.apply(["garage"])
+    ssh.wait_unit_running(unit)
+    assert uuid not in _datastore_uuids(rpc, info["uuid"])
+    assert ds_path not in ssh.read_file(f"/etc/garage/{name}.toml"), \
+        "the removed datastore is still a data_dir"
+    failed = s3.unreadable(client, conn["bucket"], digests)
+    assert not failed, f"{len(failed)} of 8 objects unreadable: {failed}"
+
+
 @pytest.fixture()
 def share_on_filesystem(ssh, rpc, shares):
     """Make a shared folder on its own filesystem of `size` (truncate
