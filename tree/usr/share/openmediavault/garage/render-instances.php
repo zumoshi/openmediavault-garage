@@ -2,9 +2,11 @@
 <?php
 /**
  * Print the render model of every Garage instance as JSON, everything the
- * deployment writes for it, and the shared folders no instance uses:
+ * deployment writes for it, the instances the plugin rendered that are no
+ * longer configured, and the shared folders it holds a garage ACL on:
  * {"instances": {"<name>": {"model": {...}} or {"error": "..."}},
- *  "unused_shares": ["<path>", ...]}
+ *  "orphans": ["<name>", ...],
+ *  "acls": {"record": "<path>", "granted": [...], "revoke": [...], "kept": [...]}}
  * Exits 1 with the reason on stderr when the configuration cannot be read.
  *
  * Part of the openmediavault-garage plugin.
@@ -13,10 +15,16 @@
 
 require_once("openmediavault/autoloader.inc");
 require_once("openmediavault/globals.inc");
+require_once("/usr/share/openmediavault/garage/lib/owned.php");
 require_once("/usr/share/openmediavault/garage/lib/render.php");
 
+use function OMV\Garage\aclGrants;
+use function OMV\Garage\orphans;
 use function OMV\Garage\renderModel;
-use function OMV\Garage\unusedShares;
+
+const ETC = "/etc/garage";
+// Written by the Salt state only.
+const ACL_RECORD = "/var/lib/openmediavault-garage/acls.json";
 
 // The way Salt's omv_conf.get_sharedfolder_path builds it, ending in "/".
 function sharedFolderPath(\OMV\Config\Database $db, string $uuid): string
@@ -67,16 +75,15 @@ try {
 		}
 		$models[] = $model;
 	}
-	$sharePaths = [];
-	foreach ($db->get("conf.system.sharedfolder") as $folder) {
-		try {
-			$sharePaths[] = sharedFolderPath($db, $folder->get("uuid"));
-		} catch (\Exception $e) {
-			// A folder without a mount point has no ACL to revoke.
-		}
+	$tomls = [];
+	foreach (glob(ETC . "/*.toml") as $toml) {
+		$tomls[basename($toml, ".toml")] = file_get_contents($toml);
 	}
+	$recorded = file_exists(ACL_RECORD) ? json_decode(
+		file_get_contents(ACL_RECORD), true, 2, JSON_THROW_ON_ERROR) : [];
 	echo json_encode(["instances" => (object)$instances,
-		"unused_shares" => unusedShares($sharePaths, $models)],
+		"orphans" => orphans($tomls, array_keys($instances)),
+		"acls" => ["record" => ACL_RECORD] + aclGrants($recorded, $models)],
 		JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 } catch (\Throwable $e) {
 	fwrite(STDERR, "garage: " . $e->getMessage() . "\n");

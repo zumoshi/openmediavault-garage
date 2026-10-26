@@ -72,6 +72,11 @@ Deleting an instance only removes it from the configuration. The apply
 stops its units, removes its files and revokes its folders' ACLs, so
 undoing the pending change instead leaves the instance running as it was.
 
+The plugin only touches what it rendered. Every toml it writes carries
+the line `# Managed by openmediavault-garage.`, and an apply or a package
+removal only cleans up an instance whose toml has it. An instance written
+by hand next to them, as the garage README describes, is left alone.
+
 ## Security model
 
 - Garage and the web UI run as the system user `garage` (no shell), with
@@ -82,8 +87,12 @@ undoing the pending change instead leaves the instance running as it was.
   uses. It is `rwx` where Garage writes into the folder itself (a
   datastore, or metadata or snapshots at the folder's root), and `--x` where
   Garage only enters the directories the deploy made for it (the storage
-  folder, a separate metadata folder). Each apply revokes the entry from
-  shared folders no instance uses.
+  folder, a separate metadata folder). The deploy records each folder it
+  grants in `/var/lib/openmediavault-garage/acls.json` before it grants,
+  and each apply revokes the entry only from recorded folders no instance
+  uses. A `garage` entry the admin set by hand, for example for a
+  hand-made instance, stays. Purging the package revokes the recorded
+  entries.
 - RPC, admin API and web UI bind to loopback only. Only the S3 API (and the
   optional website port) listen on the network.
 - The web UI is proxied by the OMV nginx and requires an OMV admin session;
@@ -127,7 +136,9 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
 - `tree/usr/share/openmediavault/garage/lib/render.php` - the render model:
   every path, data folder, port, ACL and the layout capacity of an
   instance; `render-instances.php` prints it for every instance as JSON for
-  the salt state, with the shared folders no instance uses
+  the salt state, with the deleted instances and the ACLs to revoke
+- `tree/usr/share/openmediavault/garage/lib/owned.php` - what the plugin
+  owns: tomls with its marker line and the ACLs it recorded
 - `tree/usr/share/openmediavault/garage/lib/drain.php` - when a draining
   datastore is empty; `start-rebalance.sh` restarts the move after a start
 - `tree/usr/share/openmediavault/garage/bootstrap-instance.php` - idempotent

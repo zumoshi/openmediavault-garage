@@ -3,7 +3,7 @@
 {%- set instances = salt['omv_conf.get']('conf.service.garage.instance') %}
 {#- Everything the instances need, decided by the plugin's PHP code. #}
 {%- set render = salt['cmd.run_all'](['/usr/bin/php', '/usr/share/openmediavault/garage/render-instances.php']) %}
-{%- set rendered = render.stdout | load_json if render.retcode == 0 else {'instances': {}, 'unused_shares': []} %}
+{%- set rendered = render.stdout | load_json if render.retcode == 0 else {'instances': {}, 'orphans': []} %}
 {%- set etcdir = '/etc/garage' %}
 {%- set nginxd = '/etc/nginx/openmediavault-webgui.d' %}
 
@@ -25,6 +25,17 @@ configure_garage_nginx_dir:
 render_garage:
   test.fail_without_changes:
     - comment: {{ render.stderr | json }}
+{% else %}
+{#- Every shared folder the plugin grants the garage ACL on is recorded
+    before the grant, so later applies revoke only the plugin's own ACLs. #}
+record_garage_acls:
+  file.managed:
+    - name: {{ rendered.acls.record }}
+    - contents: {{ rendered.acls.granted | json | json }}
+    - makedirs: True
+    - user: root
+    - group: root
+    - mode: '0644'
 {% endif %}
 
 {% for instance in instances | selectattr('enable') %}
@@ -96,6 +107,8 @@ configure_garage_acl_{{ name }}:
 {%- for path, perms in model.shares.items() %}
       - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:" ~ perms ~ "'") | json }}
 {%- endfor %}
+    - require:
+      - file: record_garage_acls
 
 garage_systemd_reload_{{ name }}:
   cmd.run:
@@ -184,19 +197,9 @@ purge_garage_webui_env_{{ name }}:
 
 {% endfor %}
 
-{#- Clean up instances that were deleted from the configuration. #}
-{%- set managednames = [] %}
-{%- for instance in instances %}
-{%- set _ = managednames.append(instance.name) %}
-{%- endfor %}
-{%- set orphans = [] %}
-{%- for tomlpath in salt['file.find'](etcdir, name='*.toml') | sort %}
-{%- set oname = salt['file.basename'](tomlpath) | replace('.toml', '') %}
-{%- if oname not in managednames %}
-{%- set _ = orphans.append(oname) %}
-{%- endif %}
-{%- endfor %}
-{% for name in orphans %}
+{#- Clean up the instances the plugin rendered that were deleted from the
+    configuration. The toml goes last: it marks the files as the plugin's. #}
+{% for name in rendered.orphans %}
 purge_orphan_garage_service_{{ name }}:
   service.dead:
     - name: garage@{{ name }}
@@ -210,19 +213,21 @@ purge_orphan_garage_webui_{{ name }}:
 purge_orphan_garage_files_{{ name }}:
   cmd.run:
     - name: |
-        rm -f {{ (etcdir ~ '/' ~ name ~ '.toml') | quote }} {{ (etcdir ~ '/' ~ name ~ '.rpc_secret') | quote }} {{ (etcdir ~ '/' ~ name ~ '.webui.env') | quote }}
+        rm -f {{ (etcdir ~ '/' ~ name ~ '.rpc_secret') | quote }} {{ (etcdir ~ '/' ~ name ~ '.webui.env') | quote }}
         rm -f {{ (nginxd ~ '/garage-webui-' ~ name ~ '.conf') | quote }}
         rm -rf {{ ('/etc/systemd/system/garage@' ~ name ~ '.service.d') | quote }}
         systemctl daemon-reload
+        rm -f {{ (etcdir ~ '/' ~ name ~ '.toml') | quote }}
     - watch_in:
       - cmd: garage_nginx_reload
 
 {% endfor %}
 
-{#- Shared folders no instance uses lose the garage ACL. A drained
-    datastore also loses the marker and the empty hash directories garage
-    left in it. #}
-{% for path in rendered.unused_shares %}
+{#- Shared folders the plugin granted that no instance uses lose the garage
+    ACL. A drained datastore also loses the marker and the empty hash
+    directories garage left in it. #}
+{% if render.retcode == 0 and rendered.acls.revoke %}
+{% for path in rendered.acls.revoke %}
 revoke_garage_acl_{{ loop.index }}:
   cmd.run:
     - name: |
@@ -233,6 +238,16 @@ revoke_garage_acl_{{ loop.index }}:
         fi && setfacl -x u:garage {{ path | quote }}
     - onlyif: {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") | json }}
 {% endfor %}
+
+forget_garage_acls:
+  file.managed:
+    - name: {{ rendered.acls.record }}
+    - contents: {{ rendered.acls.kept | json | json }}
+    - require:
+{%- for path in rendered.acls.revoke %}
+      - cmd: revoke_garage_acl_{{ loop.index }}
+{%- endfor %}
+{% endif %}
 
 garage_nginx_reload:
   cmd.run:

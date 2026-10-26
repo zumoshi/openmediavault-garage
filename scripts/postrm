@@ -11,25 +11,20 @@ set -e
 
 remove_action() {
 	####################################################################
-	# Stop and disable all Garage instances and web UIs.
+	# Stop the instances the plugin rendered and remove their files. A
+	# toml without the plugin's marker line is the admin's own.
 	####################################################################
-	echo "Stopping Garage instances ..."
-	units=$(systemctl list-units --plain --no-legend \
-		'garage@*.service' 'omv-garage-webui@*.service' 2>/dev/null | awk '{print $1}')
-	if [ -n "$units" ]; then
-		systemctl stop $units >/dev/null 2>&1 || true
-		systemctl disable $units >/dev/null 2>&1 || true
-	fi
-
-	####################################################################
-	# Remove rendered files.
-	####################################################################
-	echo "Removing Garage instance files ..."
-	for f in /etc/garage/*.toml /etc/garage/*.rpc_secret /etc/garage/*.webui.env; do
-		rm -f "$f"
+	echo "Removing Garage instances ..."
+	for toml in /etc/garage/*.toml; do
+		grep -qs '^# Managed by openmediavault-garage\.' "$toml" || continue
+		name=$(basename "$toml" .toml)
+		systemctl disable --now "garage@$name.service" \
+			"omv-garage-webui@$name.service" >/dev/null 2>&1 || true
+		rm -f "/etc/garage/$name.rpc_secret" "/etc/garage/$name.webui.env" \
+			"/etc/nginx/openmediavault-webgui.d/garage-webui-$name.conf"
+		rm -rf "/etc/systemd/system/garage@$name.service.d"
+		rm -f "$toml"
 	done
-	rm -rf /etc/systemd/system/garage@*.service.d
-	rm -f /etc/nginx/openmediavault-webgui.d/garage-webui-*.conf
 	if [ -d /run/systemd/system ]; then
 		systemctl daemon-reload >/dev/null 2>&1 || true
 	fi
@@ -43,6 +38,14 @@ remove_action() {
 case "$1" in
 	purge)
 		remove_action
+		echo "Revoking the garage ACLs the plugin granted ..."
+		record=/var/lib/openmediavault-garage/acls.json
+		if [ -f "$record" ]; then
+			# shellcheck disable=SC2016
+			php -r 'foreach (json_decode(file_get_contents($argv[1])) as $p) echo $p, "\0";' \
+				"$record" | xargs -0 -r setfacl -x u:garage 2>/dev/null || true
+		fi
+		rm -rf /var/lib/openmediavault-garage
 		echo "Cleaning up configuration database ..."
 		omv_config_delete "/config/services/garage"
 	;;

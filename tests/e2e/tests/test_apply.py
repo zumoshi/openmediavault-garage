@@ -53,10 +53,6 @@ def handmade_instance(ssh, shares):
                 "systemctl daemon-reload")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.4: apply purges every /etc/garage/*.toml that is not in "
-    "confdb, and its unit drop-in, and revokes the garage ACL from every "
-    "shared folder no plugin instance uses"))
 def test_apply_keeps_handmade_instance(ssh, rpc, handmade_instance):
     files, path = handmade_instance
     rpc.apply(["garage"])

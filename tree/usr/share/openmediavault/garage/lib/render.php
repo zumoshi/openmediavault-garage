@@ -151,21 +151,3 @@ function renderModel(array $instance, array $datastores, array $paths): array
 		"drain" => in_array("draining", array_column($datastores, "state"), true),
 	];
 }
-
-/**
- * The shared folders no instance uses, whose garage ACL can go. None while
- * an instance cannot render (null model), as its folders are unknown.
- *
- * @param list<string> $sharePaths Every shared folder's path.
- * @param list<?array> $models Every instance's render model.
- * @return list<string>
- */
-function unusedShares(array $sharePaths, array $models): array
-{
-	if (in_array(null, $models, true)) {
-		return [];
-	}
-	$used = array_merge([], ...array_map(
-		fn($model) => array_keys($model["shares"]), $models));
-	return array_values(array_diff($sharePaths, $used));
-}
