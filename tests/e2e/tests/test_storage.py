@@ -47,9 +47,6 @@ def _remove_datastore(rpc, instance_uuid: str, check,
         time.sleep(10)
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.2: deleteDatastore drops the data_dir entry without moving "
-    "its blocks, so the objects stored there become unreadable"))
 def test_datastore_removal_keeps_objects(ssh, rpc, shares, make_instance,
                                          s3_setup):
     name, info = make_instance(extra_datastore=True)
@@ -96,9 +93,6 @@ def _rebalances(ssh, name: str) -> list[dict]:
             if w["name"] == "Block rebalance worker"]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.2: deleteDatastore removes the row at once, there is no "
-    "drain to resume after a restart"))
 def test_datastore_drain_resumes_after_a_garage_restart(
         ssh, rpc, shares, make_instance, s3_setup):
     """The rebalance that drains a datastore lives in garage's memory. A
@@ -106,17 +100,21 @@ def test_datastore_drain_resumes_after_a_garage_restart(
     name, info = make_instance(extra_datastore=True)
     conn = s3_setup(name, info["uuid"])
     client = s3.client(conn["endpoint"], conn["key_id"], conn["secret"])
-    digests = s3.put_random_objects(client, conn["bucket"], 8, OBJECT_SIZE)
+    digests = s3.put_random_objects(client, conn["bucket"], 30, OBJECT_SIZE)
     ds_path = shares.path(info["datastore_share"])
     on_datastore = _block_files(ssh, ds_path)
-    assert on_datastore > 0, f"no block of 8 objects is on {ds_path}"
+    assert on_datastore > 0, f"no block of 30 objects is on {ds_path}"
     [uuid] = _datastore_uuids(rpc, info["uuid"])
     unit = f"garage@{name}"
 
-    # Garage cannot write to the storage folder's data directory, so the
-    # rebalance started by the apply moves nothing and gives up.
-    data_dirs = shquote(shares.path(info["storage_share"]) + "/data")
-    ssh.out(f"find {data_dirs} -type d -exec chmod u-w {{}} +")
+    # Garage cannot write below the storage folder's data directory, so
+    # the rebalance started by the apply moves nothing and gives up. The
+    # apply resets the mode of the data directory itself, not of the hash
+    # directories in it.
+    data_dir = shquote(shares.path(info["storage_share"]) + "/data")
+    ssh.out(f"cd {data_dir} && for i in $(seq 0 255); do "
+            "d=$(printf %02x $i); mkdir -p $d; chown garage:garage $d; "
+            "done && find . -mindepth 1 -type d -exec chmod u-w {} +")
     try:
         rpc.call("Garage", "deleteDatastore", {"uuid": uuid})
         rpc.apply(["garage"])
@@ -131,7 +129,7 @@ def test_datastore_drain_resumes_after_a_garage_restart(
         assert _block_files(ssh, ds_path) == on_datastore, \
             "blocks moved although the storage folder was not writable"
     finally:
-        ssh.out(f"find {data_dirs} -type d -exec chmod u+w {{}} +")
+        ssh.out(f"find {data_dir} -mindepth 1 -type d -exec chmod u+w {{}} +")
 
     ssh.out(f"systemctl restart {unit}")
     ssh.wait_unit_running(unit)
@@ -151,12 +149,9 @@ def test_datastore_drain_resumes_after_a_garage_restart(
     assert ds_path not in ssh.read_file(f"/etc/garage/{name}.toml"), \
         "the removed datastore is still a data_dir"
     failed = s3.unreadable(client, conn["bucket"], digests)
-    assert not failed, f"{len(failed)} of 8 objects unreadable: {failed}"
+    assert not failed, f"{len(failed)} of 30 objects unreadable: {failed}"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 1.2: the datastore edit form moves a datastore to another "
-    "shared folder, which drops the blocks in the old one"))
 def test_datastore_edit_keeps_its_shared_folder(rpc, shares, make_instance):
     name, info = make_instance(extra_datastore=True)
     [uuid] = _datastore_uuids(rpc, info["uuid"])

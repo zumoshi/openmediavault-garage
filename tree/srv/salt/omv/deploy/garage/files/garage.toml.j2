@@ -44,7 +44,7 @@ data_dir = {{ model.data_dir | json }}
 {%- else %}
 data_dir = [
 {%- for dir in model.data_dir %}
-  { path = {{ dir.path | json }}, capacity = {{ dir.capacity | json }} }{{ "," if not loop.last else "" }}
+  { path = {{ dir.path | json }}, {% if 'read_only' in dir %}read_only = true{% else %}capacity = {{ dir.capacity | json }}{% endif %} }{{ "," if not loop.last else "" }}
 {%- endfor %}
 ]
 {%- endif %}

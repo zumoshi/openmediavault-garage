@@ -35,8 +35,9 @@ final class DrainTest extends TestCase
     public function testRunsReadOnlyOnlyWhenGarageLoadedTheReadOnlyEntry(): void
     {
         $path = "/srv/b \"q\" é/";
-        self::assertSame([true, true, false, false, false],
+        self::assertSame([true, true, true, false, false, false],
             [runsReadOnly(self::TOML, $path, 1000, 1000),
+                runsReadOnly(self::TOML, rtrim($path, "/"), 1000, 1000),
                 runsReadOnly(self::TOML, $path, 1001, 1000),
                 runsReadOnly(self::TOML, $path, 999, 1000),
                 runsReadOnly(self::TOML, $path, null, 1000),

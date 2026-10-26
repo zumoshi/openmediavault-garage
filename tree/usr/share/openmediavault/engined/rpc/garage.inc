@@ -11,22 +11,27 @@
  */
 
 require_once("openmediavault/functions.inc");
+require_once("/usr/share/openmediavault/garage/lib/drain.php");
 require_once("/usr/share/openmediavault/garage/lib/live.php");
 require_once("/usr/share/openmediavault/garage/lib/ports.php");
 require_once("/usr/share/openmediavault/garage/lib/render.php");
 
+use OMV\Garage\DrainStatus;
 use OMV\Garage\PortConflict;
 use OMV\Rpc\ServiceAbstract;
 use OMV\System\Process;
 use OMV\System\SystemCtl;
 
 use function OMV\Garage\aliasChanges;
+use function OMV\Garage\blockFiles;
 use function OMV\Garage\bucketLabel;
 use function OMV\Garage\bucketRow;
 use function OMV\Garage\bucketSettings;
+use function OMV\Garage\drainStatus;
 use function OMV\Garage\permissionChanges;
 use function OMV\Garage\permissionRows;
 use function OMV\Garage\portConflicts;
+use function OMV\Garage\runsReadOnly;
 use function OMV\Garage\storageError;
 
 use const OMV\Garage\PERMISSIONS;
@@ -46,6 +51,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	// rotates the web UI password afterwards.
 	private const SERVER_OWNED = ["rpcsecret", "admintoken", "webuipassword",
 		"webuiport"];
+	// Block files counted at most per draining datastore list load.
+	private const BLOCK_FILES_SHOWN = 10000;
 
 	public function getName()
 	{
@@ -313,7 +320,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			}
 		}
 		$this->assertDeployable($object,
-			$isNew ? 0 : count($this->datastores($db, $params["uuid"])));
+			$isNew ? [] : $this->datastores($db, $params["uuid"]));
 
 		$db->assertIsUnique($object, "name", sprintf(
 			gettext("A Garage instance named '%s' already exists."),
@@ -422,6 +429,9 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$assoc = $objectv->getAssoc();
 			$assoc["sharedfoldername"] = $this->getSharedFolderName(
 				$db, $objectv->get("shareuuid"));
+			$assoc["status"] = $objectv->get("state") === "draining"
+				? $this->drainLabel(...$this->drainProgress($db, $objectv))
+				: gettext("Active");
 			$objectsAssoc[] = $assoc;
 		}
 		return $this->applyFilter($objectsAssoc, $params["start"], $params["limit"],
@@ -455,30 +465,120 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			throw new \OMV\Exception(
 				gettext("This shared folder is the storage folder of the instance. Pick another one."));
 		}
-		$object = new \OMV\Config\ConfigObject("conf.service.garage.datastore");
-		$object->setAssoc($params);
-		if ($object->isNew()) {
+		$newUuid = \OMV\Environment::get("OMV_CONFIGOBJECT_NEW_UUID");
+		$datastores = $this->datastores($db, $params["instanceuuid"]);
+		if ($params["uuid"] === $newUuid) {
+			$object = new \OMV\Config\ConfigObject("conf.service.garage.datastore");
+			$object->setAssoc($params);
 			$db->assertIsUnique($object, "shareuuid");
+			$datastores[] = $object;
+		} else {
+			// Another folder would drop the blocks garage keeps in this one.
+			$object = $db->get("conf.service.garage.datastore", $params["uuid"]);
+			if ($object->get("shareuuid") !== $params["shareuuid"] ||
+				$object->get("instanceuuid") !== $params["instanceuuid"]) {
+				throw new \OMV\Exception(gettext(
+					"The shared folder of a datastore cannot be changed. Add a new datastore, then delete this one."));
+			}
+			$object->set("capacity", $params["capacity"]);
 		}
-		$this->assertDeployable($instance,
-			count($this->datastores($db, $params["instanceuuid"])) +
-				($object->isNew() ? 1 : 0));
+		$this->assertDeployable($instance, $datastores);
 		$db->set($object);
 		return $object->getAssoc();
 	}
 
+	/**
+	 * Removing a datastore takes two deletes. The first marks it draining:
+	 * the next apply makes it read-only and garage moves its blocks to the
+	 * other data folders. Once it is empty, the second delete removes the
+	 * row, and the apply after that drops the folder.
+	 */
 	public function deleteDatastore($params, $context)
 	{
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.common.objectuuid");
 		$db = \OMV\Config\Database::getInstance();
 		$object = $db->get("conf.service.garage.datastore", $params["uuid"]);
-		$instanceUuid = $object->get("instanceuuid");
-		$this->assertDeployable(
-			$db->get("conf.service.garage.instance", $instanceUuid),
-			count($this->datastores($db, $instanceUuid)) - 1);
+		if ($object->get("state") === "active") {
+			$instanceUuid = $object->get("instanceuuid");
+			$object->set("state", "draining");
+			$this->assertDeployable(
+				$db->get("conf.service.garage.instance", $instanceUuid),
+				array_map(fn($datastore) => $datastore->get("uuid") === $params["uuid"]
+					? $object : $datastore, $this->datastores($db, $instanceUuid)));
+			$db->set($object);
+			return $object->getAssoc();
+		}
+		[$status, $blockFiles] = $this->drainProgress($db, $object);
+		if ($status !== DrainStatus::Empty) {
+			throw new \OMV\Exception(sprintf(gettext(
+				"The datastore cannot be removed yet. %s"),
+				$this->drainLabel($status, $blockFiles)));
+		}
 		$db->delete($object);
 		return $object->getAssoc();
+	}
+
+	/**
+	 * Where the removal of a draining datastore stands.
+	 *
+	 * @return array{DrainStatus, ?int} The status and the block files left.
+	 */
+	private function drainProgress($db, \OMV\Config\ConfigObject $datastore): array
+	{
+		$instance = $db->get("conf.service.garage.instance",
+			$datastore->get("instanceuuid"));
+		$name = $instance->get("name");
+		$path = $this->getSharedFolderPath($db, $datastore->get("shareuuid"));
+		$toml = self::GARAGE_ETC . "/" . $name . ".toml";
+		$unit = "garage@" . $name;
+		$startedAt = null;
+		if ((new SystemCtl($unit))->isActive()) {
+			$output = [];
+			(new Process(["systemctl", "show", "--property=ExecMainStartTimestamp",
+				"--value", "--timestamp=unix", $unit]))->execute($output);
+			$startedAt = intval(ltrim($output[0] ?? "", "@")) ?: null;
+		}
+		$runsReadOnly = is_readable($toml) && runsReadOnly(
+			file_get_contents($toml), $path, $startedAt, filemtime($toml));
+		$blockFiles = blockFiles($path, self::BLOCK_FILES_SHOWN);
+		return [drainStatus($runsReadOnly,
+			$runsReadOnly && $this->rebalanced($instance), $blockFiles),
+			$blockFiles];
+	}
+
+	// Whether a rebalance finished since garage started. Unknown while the
+	// admin API does not answer, which counts as not yet.
+	private function rebalanced(\OMV\Config\ConfigObject $instance): bool
+	{
+		try {
+			$workers = $this->adminApi($instance, "ListWorkers", ["node" => "self"],
+				["busyOnly" => false])["success"] ?? [];
+		} catch (\OMV\Exception $e) {
+			return false;
+		}
+		foreach (array_merge([], ...array_values($workers)) as $worker) {
+			if ($worker["name"] === "Block rebalance worker" &&
+				$worker["state"] === "done") {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private function drainLabel(DrainStatus $status, ?int $blockFiles): string
+	{
+		return match ($status) {
+			DrainStatus::Pending => gettext(
+				"Removing: the data moves once the change is applied and the instance runs."),
+			DrainStatus::Migrating => sprintf(gettext(
+				"Removing: moving data, %s block files left."),
+				is_null($blockFiles) ? gettext("unknown")
+					: ($blockFiles >= self::BLOCK_FILES_SHOWN
+						? sprintf(gettext("more than %d"), self::BLOCK_FILES_SHOWN)
+						: strval($blockFiles))),
+			DrainStatus::Empty => gettext("Empty: delete it again to remove it."),
+		};
 	}
 
 	// ------------------------------------------------------------------
@@ -840,11 +940,16 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				$this->datastores($db, $instance->get("uuid"))));
 	}
 
-	// An enabled instance must render: Salt deploys it on the next apply.
-	private function assertDeployable($instance, int $datastores): void
+	/**
+	 * An enabled instance must render: Salt deploys it on the next apply.
+	 *
+	 * @param \OMV\Config\ConfigObject[] $datastores
+	 */
+	private function assertDeployable($instance, array $datastores): void
 	{
 		$error = storageError($instance->get("storagesplit"),
-			$instance->get("storagecapacity"), $datastores);
+			$instance->get("storagecapacity"),
+			array_map(fn($datastore) => $datastore->getAssoc(), $datastores));
 		if ($instance->get("enable") && !is_null($error)) {
 			throw new \OMV\Exception(gettext($error->message()));
 		}

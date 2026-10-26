@@ -34,17 +34,26 @@ enum StorageError
 
 /**
  * Why an instance's data folders cannot be rendered, or null. Garage needs
- * at least one data folder, and a capacity on every entry of a list.
+ * at least one writable data folder, and a capacity on every writable
+ * entry of a list. A draining datastore is a read-only entry.
+ *
+ * @param array[] $datastores The instance's datastore rows.
  */
-function storageError(bool $split, int $storageCapacity, int $datastores): ?StorageError
+function storageError(bool $split, int $storageCapacity, array $datastores): ?StorageError
 {
-	if ($split && $datastores === 0) {
+	$active = array_filter($datastores, fn($datastore) => !draining($datastore));
+	if ($split && !$active) {
 		return StorageError::NoDatastore;
 	}
-	if (!$split && $datastores > 0 && $storageCapacity < 1) {
+	if (!$split && $datastores && $storageCapacity < 1) {
 		return StorageError::NoStorageCapacity;
 	}
 	return null;
+}
+
+function draining(array $datastore): bool
+{
+	return $datastore["state"] === "draining";
 }
 
 /**
@@ -55,54 +64,70 @@ function storageError(bool $split, int $storageCapacity, int $datastores): ?Stor
  * @param array<string,string> $paths The path of every shared folder the
  *   instance uses by uuid, ending in "/" the way OMV builds it.
  * @return array{metadata_dir: string, snapshots_dir: ?string,
- *   data_dir: string|list<array{path: string, capacity: string}>,
- *   ports: array<string,?int>, paths: list<string>, dirs: list<string>,
- *   layout_capacity: int} `data_dir` is a single path without a capacity
- *   for the storage folder alone. `paths` are the shared folders systemd
- *   mounts and lets garage write, and that get the garage ACL.
+ *   data_dir: string|list<array>, ports: array<string,?int>,
+ *   shares: array<string,string>, dirs: list<string>,
+ *   layout_capacity: int, drain: bool} `data_dir` is a single path
+ *   without a capacity for the storage folder alone. A draining datastore
+ *   is a `read_only` entry without capacity. `shares` maps the shared
+ *   folders systemd mounts and lets garage write to the ACL permissions
+ *   garage needs on them: "rwx" where garage writes into the folder
+ *   itself, "--x" where it only enters the directories made for it.
+ *   `drain` starts a rebalance with garage, which moves the blocks off the
+ *   read-only entries.
  * @throws \DomainException For a StorageError.
  */
 function renderModel(array $instance, array $datastores, array $paths): array
 {
 	$split = (bool)$instance["storagesplit"];
 	$storageCapacity = intval($instance["storagecapacity"]);
-	$error = storageError($split, $storageCapacity, count($datastores));
+	$error = storageError($split, $storageCapacity, $datastores);
 	if (!is_null($error)) {
 		throw new \DomainException($error->message());
 	}
 
+	$shares = [];
+	$grant = function (string $path, string $perms) use (&$shares): void {
+		if (($shares[$path] ?? "") !== "rwx") {
+			$shares[$path] = $perms;
+		}
+	};
 	$storage = $paths[$instance["storageshareuuid"]];
 	$storageBase = rtrim($storage, "/");
-	$shares = [$storage];
 	$dataDirs = [];
 	if (!$split) {
 		$metadataDir = $storageBase . "/meta";
 		$dirs = [$metadataDir, $storageBase . "/data"];
 		$dataDirs[] = ["path" => $storageBase . "/data",
 			"capacity" => $storageCapacity];
+		$grant($storage, "--x");
 	} elseif ($instance["metadatashareuuid"] === $instance["storageshareuuid"]) {
 		$metadataDir = $storage;
 		$dirs = [];
+		$grant($storage, "rwx");
 	} else {
 		$metadata = $paths[$instance["metadatashareuuid"]];
 		$metadataDir = rtrim($metadata, "/") . "/meta";
 		$dirs = [$metadataDir];
-		$shares[] = $metadata;
+		$grant($storage, "--x");
+		$grant($metadata, "--x");
 	}
 
 	$snapshots = $paths[$instance["snapshotsshareuuid"]] ?? null;
 	if (!is_null($snapshots)) {
-		$shares[] = $snapshots;
+		$grant($snapshots, "rwx");
 	}
 	foreach ($datastores as $datastore) {
 		$path = $paths[$datastore["shareuuid"]];
-		$shares[] = $path;
-		$dataDirs[] = ["path" => $path, "capacity" => intval($datastore["capacity"])];
+		$grant($path, "rwx");
+		$dataDirs[] = draining($datastore)
+			? ["path" => $path, "read_only" => true]
+			: ["path" => $path, "capacity" => intval($datastore["capacity"])];
 	}
 
 	if ($datastores) {
-		$dataDir = array_map(fn($dir) => ["path" => $dir["path"],
-			"capacity" => $dir["capacity"] . "GiB"], $dataDirs);
+		$dataDir = array_map(fn($dir) => isset($dir["capacity"])
+			? ["path" => $dir["path"], "capacity" => $dir["capacity"] . "GiB"]
+			: $dir, $dataDirs);
 		$layoutCapacity = array_sum(array_column($dataDirs, "capacity")) * GIB;
 	} else {
 		$dataDir = $dataDirs[0]["path"];
@@ -120,8 +145,27 @@ function renderModel(array $instance, array $datastores, array $paths): array
 			"web" => $instance["webenable"] ? intval($instance["webport"]) : null,
 			"webui" => $instance["webuienable"] ? intval($instance["webuiport"]) : null,
 		],
-		"paths" => $shares,
+		"shares" => $shares,
 		"dirs" => $dirs,
 		"layout_capacity" => $layoutCapacity,
+		"drain" => in_array("draining", array_column($datastores, "state"), true),
 	];
+}
+
+/**
+ * The shared folders no instance uses, whose garage ACL can go. None while
+ * an instance cannot render (null model), as its folders are unknown.
+ *
+ * @param list<string> $sharePaths Every shared folder's path.
+ * @param list<?array> $models Every instance's render model.
+ * @return list<string>
+ */
+function unusedShares(array $sharePaths, array $models): array
+{
+	if (in_array(null, $models, true)) {
+		return [];
+	}
+	$used = array_merge([], ...array_map(
+		fn($model) => array_keys($model["shares"]), $models));
+	return array_values(array_diff($sharePaths, $used));
 }

@@ -72,7 +72,8 @@ configure_garage_drop_in_{{ name }}:
     - template: jinja
     - context:
         instance: {{ instance | json }}
-        paths: {{ model.paths | json }}
+        paths: {{ model.shares | list | json }}
+        drain: {{ model.drain | json }}
     - user: root
     - group: root
     - mode: '0644'
@@ -80,11 +81,11 @@ configure_garage_drop_in_{{ name }}:
 configure_garage_acl_{{ name }}:
   cmd.run:
     - names:
-{%- for path in model.paths %}
+{%- for path in model.shares %}
       - {{ ('setfacl -m u:garage:rwX ' ~ path | quote) | json }}
 {%- endfor %}
     - unless:
-{%- for path in model.paths %}
+{%- for path in model.shares %}
       - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:rw'") | json }}
 {%- endfor %}
 

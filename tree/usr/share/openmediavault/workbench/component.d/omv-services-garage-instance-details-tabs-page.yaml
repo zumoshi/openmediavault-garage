@@ -29,6 +29,10 @@ data:
               prop: capacity
               flexGrow: 1
               sortable: true
+            - name: _("Status")
+              prop: status
+              flexGrow: 2
+              sortable: false
           actions:
             - template: create
               execute:
@@ -44,7 +48,7 @@ data:
             - template: delete
               confirmationDialogConfig:
                 template: confirmation-danger
-                message: _("Are you sure you want to remove this datastore from the instance? The data in the shared folder is kept.")
+                message: _("Removing a datastore takes two deletes. After the first one and an apply, Garage moves the data in this shared folder to the instance's other data folders. Objects stay readable meanwhile, and the Status column shows the progress. Once it says the datastore is empty, delete it again and apply to remove it.")
               execute:
                 type: request
                 request:

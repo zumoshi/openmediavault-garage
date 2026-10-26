@@ -21,9 +21,10 @@ data:
       - type: sharedFolderSelect
         name: shareuuid
         label: _("Shared folder")
-        hint: _("The location where object data blocks are stored.")
+        hint: _("The location where object data blocks are stored. It cannot be changed later.")
         hasEmptyOption: true
         value: ""
+        disabled: "{{ _routeConfig.data.editing | toboolean }}"
         validators:
           required: true
       - type: numberInput

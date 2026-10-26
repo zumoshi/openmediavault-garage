@@ -1,5 +1,8 @@
-"""Buckets, access keys and permissions made, changed and removed through
-the instance details page, checked against what garage itself reports."""
+"""Datastores, buckets, access keys and permissions made, changed and
+removed through the instance details page, checked against what garage
+itself reports."""
+
+import time
 
 from playwright.sync_api import expect
 
@@ -149,3 +152,43 @@ def test_aliasless_bucket_edited_named_and_renamed_via_ui(page, cfg, ssh,
     got = bucket()
     assert (got["globalAliases"], got["quotas"]["maxObjects"]) == \
         (["gt-renamed"], 5), f"garage after renaming the bucket: {got}"
+
+
+def test_datastore_edited_and_removed_through_the_ui(page, cfg, ssh,
+                                                     make_instance):
+    name, info = make_instance(extra_datastore=True)
+    share = info["datastore_share"]
+    panel = ui.details_tab(page, cfg.host, info["uuid"], "Datastores")
+
+    panel.get_by_role("cell", name=share, exact=True).click()
+    panel.get_by_role("button", name="Edit").click()
+    expect(page.get_by_role("combobox", name="Shared folder")).to_be_disabled()
+    page.get_by_label("Capacity (GiB)").fill("7")
+    page.get_by_role("button", name="Save").click()
+    page.wait_for_url(f"**/details/{info['uuid']}", timeout=30000)
+    panel = ui.details_tab(page, cfg.host, info["uuid"], "Datastores")
+    expect(panel.get_by_role("cell", name="7", exact=True)).to_be_visible()
+
+    panel.get_by_role("cell", name=share, exact=True).click()
+    panel.get_by_role("button", name="Delete").click()
+    expect(page.get_by_text("Removing a datastore takes two deletes")) \
+        .to_be_visible()
+    page.get_by_role("button", name="Yes").click()
+    expect(panel.get_by_text("the data moves once the change is applied")) \
+        .to_be_visible(timeout=30000)
+
+    ui.apply_via_ui(page)
+    deadline = time.time() + 180
+    while True:
+        page.reload()
+        panel = ui.details_tab(page, cfg.host, info["uuid"], "Datastores")
+        status = panel.get_by_role("row").filter(has_text=share).inner_text()
+        if "Empty: delete it again" in status:
+            break
+        assert time.time() < deadline, f"datastore not drained: {status}"
+        time.sleep(5)
+
+    ui.delete_row(page, panel, share)
+    ui.apply_via_ui(page)
+    toml = ssh.read_file(f"/etc/garage/{name}.toml")
+    assert f"{share}/" not in toml, "the removed datastore is still a data_dir"

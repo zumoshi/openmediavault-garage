@@ -32,6 +32,11 @@
 		"capacity": {
 			"type": "number",
 			"minimum": 0
+		},
+		"state": {
+			"type": "string",
+			"enum": ["active", "draining"],
+			"default": "active"
 		}
 	}
 }

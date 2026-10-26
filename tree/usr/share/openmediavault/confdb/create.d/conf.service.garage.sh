@@ -63,6 +63,7 @@ set -e
 #           <instanceuuid>...</instanceuuid>
 #           <shareuuid>...</shareuuid>
 #           <capacity>1</capacity>
+#           <state>active|draining</state>
 #         </datastore>
 #       </datastores>
 #     </garage>

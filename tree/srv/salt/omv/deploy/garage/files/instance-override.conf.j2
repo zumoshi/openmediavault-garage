@@ -11,3 +11,6 @@ RequiresMountsFor={{ quoted | join(' ') }}
 [Service]
 Environment=RUST_LOG=garage={{ instance.loglevel }}
 ReadWritePaths={{ quoted | join(' ') }}
+{%- if drain %}
+ExecStartPost=-/usr/share/openmediavault/garage/start-rebalance.sh {{ instance.name }}
+{%- endif %}
