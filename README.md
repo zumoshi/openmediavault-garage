@@ -47,7 +47,8 @@ Workflow per instance:
    needs a capacity on every data folder, so the instance also needs its
    storage folder capacity. Capacities are placement weights, not limits.
    With a separate metadata shared folder the data lives on datastores
-   only, so such an instance can be enabled once it has one.
+   only, so such an instance can be enabled once it has one. A datastore's
+   shared folder cannot be changed later, only its capacity.
 3. Apply the pending configuration changes (top bar checkmark). The salt
    deploy renders `/etc/garage/<name>.toml`, the systemd drop-in, ACLs, and
    starts `garage@<name>`, then bootstraps the single-node layout with the
@@ -56,12 +57,29 @@ Workflow per instance:
    These take effect at once in the running instance, with no apply.
 5. Point S3 clients at `http://<omv>:<s3port>` with the region and a key.
 
+Removing a datastore takes two deletes. After the first delete and an
+apply, the datastore is read-only and Garage moves its blocks to the other
+data folders. Objects stay readable meanwhile. The **Status** column of the
+**Datastores** tab shows how many block files are left (counted up to
+10000). Garage keeps this move in memory only, so `garage@<name>` starts it
+again after every start, including a reboot. Once the status says the
+datastore is empty, delete it again and apply. That apply drops the folder
+from the instance, removes the empty directories and the marker Garage
+left in it, and revokes the folder's ACL. The last datastore of an
+enabled instance with a separate metadata folder cannot be removed.
+
 ## Security model
 
 - Garage and the web UI run as the system user `garage` (no shell), with
   `ProtectSystem=strict`, `NoNewPrivileges`, system-call filtering, and
   per-instance `ReadWritePaths` limited to the chosen shared folders.
 - Configs and secrets live in `/etc/garage/` (0600/0640, `root:garage`).
+- The user `garage` gets an ACL entry on each shared folder an instance
+  uses. It is `rwx` where Garage writes into the folder itself (a
+  datastore, or metadata or snapshots at the folder's root), and `--x` where
+  Garage only enters the directories the deploy made for it (the storage
+  folder, a separate metadata folder). Each apply revokes the entry from
+  shared folders no instance uses.
 - RPC, admin API and web UI bind to loopback only. Only the S3 API (and the
   optional website port) listen on the network.
 - The web UI is proxied by the OMV nginx and requires an OMV admin session;
@@ -103,8 +121,11 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
 - `tree/srv/salt/omv/deploy/garage/` - salt state: toml, secrets, drop-ins,
   ACLs, units, nginx locations, orphan cleanup
 - `tree/usr/share/openmediavault/garage/lib/render.php` - the render model:
-  every path, data folder, port and the layout capacity of an instance;
-  `render-instance.php` prints it as JSON for the salt state
+  every path, data folder, port, ACL and the layout capacity of an
+  instance; `render-instances.php` prints it for every instance as JSON for
+  the salt state, with the shared folders no instance uses
+- `tree/usr/share/openmediavault/garage/lib/drain.php` - when a draining
+  datastore is empty; `start-rebalance.sh` restarts the move after a start
 - `tree/usr/share/openmediavault/garage/bootstrap-instance.php` - idempotent
   single-node layout bootstrap (wait, assign, apply, converge capacity)
 - `tree/var/www/openmediavault/garage-sso/` - one-click web UI sign-in page,
