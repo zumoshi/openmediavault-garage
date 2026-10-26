@@ -154,6 +154,28 @@ def test_datastore_drain_resumes_after_a_garage_restart(
     assert not failed, f"{len(failed)} of 8 objects unreadable: {failed}"
 
 
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 1.2: the datastore edit form moves a datastore to another "
+    "shared folder, which drops the blocks in the old one"))
+def test_datastore_edit_keeps_its_shared_folder(rpc, shares, make_instance):
+    name, info = make_instance(extra_datastore=True)
+    [uuid] = _datastore_uuids(rpc, info["uuid"])
+    row = rpc.call("Garage", "getDatastore", {"uuid": uuid})
+    other = shares.uuid_by_name(shares.create(f"{name}d"))
+
+    try:
+        rpc.call("Garage", "setDatastore", {**row, "shareuuid": other})
+    except RpcError:
+        pass
+    after = rpc.call("Garage", "getDatastore", {"uuid": uuid})
+    assert after["shareuuid"] == row["shareuuid"], \
+        "the datastore moved to another shared folder"
+
+    rpc.call("Garage", "setDatastore", {**row, "capacity": 7})
+    after = rpc.call("Garage", "getDatastore", {"uuid": uuid})
+    assert (after["shareuuid"], after["capacity"]) == (row["shareuuid"], 7)
+
+
 @pytest.fixture()
 def share_on_filesystem(ssh, rpc, shares):
     """Make a shared folder on its own filesystem of `size` (truncate
