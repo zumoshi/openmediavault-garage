@@ -162,8 +162,10 @@ def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
     ui.delete_instance_via_ui(page, name)
     ui.apply_via_ui(page)
 
-    assert not ssh.file_exists(f"/etc/garage/{name}.toml"), "toml not purged"
-    assert not ssh.file_exists(f"/etc/garage/{name}.webui.env"), "env purged"
+    for path in (f"/etc/garage/{name}.toml", f"/etc/garage/{name}.rpc_secret",
+                 f"/etc/garage/{name}.webui.env",
+                 f"/etc/systemd/system/garage@{name}.service.d"):
+        assert not ssh.file_exists(path), f"{path} not purged"
     assert not ssh.unit_active(f"garage@{name}")
     assert not ssh.unit_active(f"omv-garage-webui@{name}")
     assert not ssh.file_exists(
@@ -185,11 +187,9 @@ def test_share_path_with_space(ssh, shares, make_instance, s3_setup):
                   conn["bucket"], b"share path with a space works")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.6: deleteInstance stops the units and removes the files at "
-    "once, so undoing the pending delete leaves a dead instance"))
 def test_undo_delete_keeps_instance_running(page, cfg, ssh, make_instance):
     name, info = make_instance()
+    pid = ssh.unit_state(f"garage@{name}")["MainPID"]
     ui.goto_instances(page, cfg.host)
     ui.delete_instance_via_ui(page, name)
     ui.undo_via_ui(page)
@@ -202,3 +202,5 @@ def test_undo_delete_keeps_instance_running(page, cfg, ssh, make_instance):
         f"after undoing its delete, {name} is back in confdb but "
         f"garage@{name} is {state['ActiveState']}/{state['SubState']} and "
         f"its toml is {'present' if toml else 'gone'}")
+    assert state["MainPID"] == pid, \
+        f"undoing the delete restarted garage@{name}: PID {pid} -> {state['MainPID']}"

@@ -184,21 +184,6 @@ purge_garage_webui_env_{{ name }}:
 
 {% endfor %}
 
-{#- Shared folders no instance uses lose the garage ACL. A drained
-    datastore also loses the marker and the empty hash directories garage
-    left in it. #}
-{% for path in rendered.unused_shares %}
-revoke_garage_acl_{{ loop.index }}:
-  cmd.run:
-    - name: |
-        if [ -f {{ (path ~ 'garage-marker') | quote }} ] &&
-          [ -z "$(find {{ path | quote }} -type f ! -name garage-marker -print -quit)" ]; then
-          find {{ path | quote }} -mindepth 1 -maxdepth 2 -type d -name '[0-9a-f][0-9a-f]' -empty -delete &&
-            rm {{ (path ~ 'garage-marker') | quote }}
-        fi && setfacl -x u:garage {{ path | quote }}
-    - onlyif: {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") | json }}
-{% endfor %}
-
 {#- Clean up instances that were deleted from the configuration. #}
 {%- set managednames = [] %}
 {%- for instance in instances %}
@@ -232,6 +217,21 @@ purge_orphan_garage_files_{{ name }}:
     - watch_in:
       - cmd: garage_nginx_reload
 
+{% endfor %}
+
+{#- Shared folders no instance uses lose the garage ACL. A drained
+    datastore also loses the marker and the empty hash directories garage
+    left in it. #}
+{% for path in rendered.unused_shares %}
+revoke_garage_acl_{{ loop.index }}:
+  cmd.run:
+    - name: |
+        if [ -f {{ (path ~ 'garage-marker') | quote }} ] &&
+          [ -z "$(find {{ path | quote }} -type f ! -name garage-marker -print -quit)" ]; then
+          find {{ path | quote }} -mindepth 1 -maxdepth 2 -type d -name '[0-9a-f][0-9a-f]' -empty -delete &&
+            rm {{ (path ~ 'garage-marker') | quote }}
+        fi && setfacl -x u:garage {{ path | quote }}
+    - onlyif: {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") | json }}
 {% endfor %}
 
 garage_nginx_reload:

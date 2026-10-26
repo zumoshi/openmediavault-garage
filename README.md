@@ -68,6 +68,10 @@ from the instance, removes the empty directories and the marker Garage
 left in it, and revokes the folder's ACL. The last datastore of an
 enabled instance with a separate metadata folder cannot be removed.
 
+Deleting an instance only removes it from the configuration. The apply
+stops its units, removes its files and revokes its folders' ACLs, so
+undoing the pending change instead leaves the instance running as it was.
+
 ## Security model
 
 - Garage and the web UI run as the system user `garage` (no shell), with

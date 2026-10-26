@@ -334,24 +334,10 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.common.objectuuid");
 		$db = \OMV\Config\Database::getInstance();
+		// Only the rows go. The next apply stops the units, removes the
+		// files and revokes the ACLs, so undoing the pending change leaves
+		// the instance as it was.
 		$object = $db->get("conf.service.garage.instance", $params["uuid"]);
-		$name = $object->get("name");
-
-		// Stop and disable the units.
-		foreach (["garage@" . $name, "omv-garage-webui@" . $name] as $unit) {
-			try {
-				(new SystemCtl($unit))->disable(true);
-			} catch (\Exception $e) {
-				// The unit may not exist (never started), ignore.
-			}
-		}
-
-		// Remove rendered files.
-		$this->removeFiles($name);
-
-		// Revoke ACLs that are no longer needed.
-		$this->revokeAcls($db, $object);
-
 		foreach ($this->datastores($db, $params["uuid"]) as $datastore) {
 			$db->delete($datastore);
 		}
@@ -874,70 +860,6 @@ class OMVRpcServiceGarage extends ServiceAbstract
 			$password .= $alphabet[random_int(0, strlen($alphabet) - 1)];
 		}
 		return $password;
-	}
-
-	private function removeFiles($name)
-	{
-		$paths = [
-			self::GARAGE_ETC . "/" . $name . ".toml",
-			self::GARAGE_ETC . "/" . $name . ".rpc_secret",
-			self::GARAGE_ETC . "/" . $name . ".webui.env",
-			"/etc/systemd/system/garage@" . $name . ".service.d/override.conf",
-			"/etc/nginx/openmediavault-webgui.d/garage-webui-" . $name . ".conf"
-		];
-		foreach ($paths as $path) {
-			if (file_exists($path)) {
-				@unlink($path);
-			}
-		}
-		$dropInDir = "/etc/systemd/system/garage@" . $name . ".service.d";
-		if (is_dir($dropInDir)) {
-			@rmdir($dropInDir);
-		}
-		$cmd = new Process(["systemctl", "daemon-reload"]);
-		try {
-			$cmd->execute($output);
-		} catch (\Exception $e) {
-		}
-	}
-
-	private function revokeAcls($db, $instance)
-	{
-		$uuid = $instance->get("uuid");
-		$shares = $this->instanceShares($db, $instance);
-		// Shares still used by other instances keep their ACL.
-		$stillUsed = [];
-		foreach ($db->get("conf.service.garage.instance") as $instancev) {
-			if ($instancev->get("uuid") !== $uuid) {
-				array_push($stillUsed, ...$this->instanceShares($db, $instancev));
-			}
-		}
-		foreach (array_unique($shares) as $shareUuid) {
-			if (in_array($shareUuid, $stillUsed)) {
-				continue;
-			}
-			$path = $this->getSharedFolderPath($db, $shareUuid);
-			if (empty($path)) {
-				continue;
-			}
-			$cmd = new Process(["setfacl", "-x", "u:garage", $path]);
-			try {
-				$cmd->execute($output);
-			} catch (\Exception $e) {
-			}
-		}
-	}
-
-	// Every shared folder the instance uses: storage, metadata, snapshots
-	// and datastores.
-	private function instanceShares($db, $instance): array
-	{
-		return array_merge(array_filter([$instance->get("storageshareuuid"),
-			$instance->get("metadatashareuuid"),
-			$instance->get("snapshotsshareuuid")],
-			fn($share) => strlen($share) === 36),
-			array_map(fn($datastore) => $datastore->get("shareuuid"),
-				$this->datastores($db, $instance->get("uuid"))));
 	}
 
 	/**
