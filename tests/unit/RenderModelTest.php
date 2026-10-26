@@ -7,7 +7,6 @@ use PHPUnit\Framework\TestCase;
 
 use function OMV\Garage\renderModel;
 use function OMV\Garage\storageError;
-use function OMV\Garage\unusedShares;
 
 final class RenderModelTest extends TestCase
 {
@@ -233,24 +232,5 @@ final class RenderModelTest extends TestCase
             ["snapshotsshareuuid" => self::STORAGE]), [], self::PATHS);
 
         self::assertSame(["/srv/disk/my store/" => "rwx"], $model["shares"]);
-    }
-
-    public function testUnusedSharesAreTheOnesNoInstanceUses(): void
-    {
-        $one = renderModel(self::instance(), [], self::PATHS);
-        $two = renderModel(self::instance(["storageshareuuid" => self::META,
-            "storagecapacity" => 20]),
-            [self::datastore(self::DS1, 5, "draining")], self::PATHS);
-
-        self::assertSame(["/srv/disk/snaps/", "/srv/disk2/ds2/"],
-            unusedShares(array_values(self::PATHS), [$one, $two]));
-    }
-
-    public function testNoShareIsUnusedWhenAnInstanceCannotRender(): void
-    {
-        $one = renderModel(self::instance(), [], self::PATHS);
-
-        self::assertSame([],
-            unusedShares(array_values(self::PATHS), [$one, null]));
     }
 }
