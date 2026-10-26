@@ -74,8 +74,7 @@ def test_migration_fills_storage_of_prerelease_row(ssh, rpc, make_instance,
     """A pre-release row names only a metadata share. The migration turns
     it into a split instance whose storage share is that same share, so it
     deploys where the pre-release put it: metadata at the share root, data
-    on the datastores. Other rows are left alone. Without a datastore the
-    render hits REVIEW 2.7, which test_split_storage covers."""
+    on the datastores. Other rows are left alone."""
     name, info = make_instance(extra_datastore=True)
     uuid = info["uuid"]
     share_uuid = shares.uuid_by_name(info["storage_share"])

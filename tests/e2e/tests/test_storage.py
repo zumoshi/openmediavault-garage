@@ -108,9 +108,6 @@ def share_on_filesystem(ssh, rpc, shares):
         filesystems.remove(ssh, rpc, name)
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.7: the storage capacity is 90% of free space floored to GiB, "
-    "so below 1.1 GiB free it renders no capacity and garage never starts"))
 def test_storage_on_small_filesystem(share_on_filesystem, make_instance,
                                      s3_setup):
     """A 1 GiB filesystem has less free space than the 1.1 GiB the storage
@@ -121,10 +118,6 @@ def test_storage_on_small_filesystem(share_on_filesystem, make_instance,
                   conn["bucket"], b"small filesystem works")
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.7: the storage capacity follows free space, so an apply after "
-    "the disk filled up rewrites the toml, restarts garage and bumps the "
-    "layout"))
 def test_filling_the_disk_changes_nothing_on_apply(ssh, rpc, shares,
                                                    share_on_filesystem,
                                                    make_instance):

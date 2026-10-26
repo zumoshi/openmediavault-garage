@@ -11,10 +11,9 @@ def test_create_instance_via_ui_and_s3(
     assert ssh.unit_active(f"garage@{name}"), "garage unit not running"
     toml = instance.read_instance_toml(ssh, name)
     storpath = shares.path(info["storage_share"])
-    assert toml["metadata_dir"] == f"{storpath}/meta"
-    assert len(toml["data_dir"]) == 1
-    assert toml["data_dir"][0]["path"] == f"{storpath}/data"
-    assert int(toml["data_dir"][0]["capacity"].rstrip("GiB")) > 0
+    assert (toml["metadata_dir"], toml["data_dir"]) == \
+        (f"{storpath}/meta", f"{storpath}/data"), \
+        "a storage folder alone is one data_dir without a capacity"
 
     conn = s3_setup(name, info["uuid"])
     s3.round_trip(conn["endpoint"], conn["key_id"], conn["secret"],

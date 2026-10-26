@@ -1,19 +1,14 @@
 {{ pillar['headers']['multiline'] -}}
 # Managed by openmediavault-garage. Do not edit.
 
-{% if split %}
-{%   if metapath == storpath %}
-{#- Metadata and storage share one folder: metadata lives at its root. #}
-metadata_dir = {{ metapath | json }}
-{%   else %}
-metadata_dir = {{ (metabase ~ '/meta') | json }}
-{%   endif %}
-{% else %}
-metadata_dir = {{ (storbase ~ '/meta') | json }}
-{% endif %}
+{# The blank lines keep earlier configs byte-identical: a changed file restarts garage. #}
+
+metadata_dir = {{ model.metadata_dir | json }}
+
+
 db_engine = {{ instance.dbengine | json }}
-{% if instance.snapshotsshareuuid | length == 36 %}
-metadata_snapshots_dir = {{ salt['omv_conf.get_sharedfolder_path'](instance.snapshotsshareuuid) | json }}
+{% if model.snapshots_dir %}
+metadata_snapshots_dir = {{ model.snapshots_dir | json }}
 {% endif %}
 {% if instance.snapshotinterval | length > 0 %}
 metadata_auto_snapshot_interval = {{ instance.snapshotinterval | json }}
@@ -24,7 +19,7 @@ disable_scrub = {{ 'true' if instance.disablescrub | to_bool else 'false' }}
 
 replication_factor = 1
 
-rpc_bind_addr = {{ ('127.0.0.1:' ~ instance.rpcport) | json }}
+rpc_bind_addr = {{ ('127.0.0.1:' ~ model.ports.rpc) | json }}
 rpc_secret_file = {{ ('/etc/garage/' ~ instance.name ~ '.rpc_secret') | json }}
 
 compression_level = {% if instance.compressiondisable %}"none"{% else %}{{ instance.compressionlevel }}{% endif %}
@@ -44,36 +39,29 @@ block_max_concurrent_writes_per_request = {{ instance.blockmaxconcurrentwrites }
 lmdb_map_size = {{ instance.lmdbmapsize | json }}
 {% endif %}
 
-{#- Data locations: the storage subfolder plus every extra datastore. #}
-{%- set datapaths = [] %}
-{%- if not split %}
-{%- set _ = datapaths.append({'path': storbase ~ '/data', 'capacity': storfreegib}) %}
-{%- endif %}
-{%- for ds in dslist %}
-{%- set _ = datapaths.append({'path': salt['omv_conf.get_sharedfolder_path'](ds.shareuuid), 'capacity': ds.capacity | int}) %}
-{%- endfor %}
-{%- if datapaths | length == 0 %}
-{%- set _ = datapaths.append({'path': storbase ~ '/data', 'capacity': storfreegib}) %}
-{%- endif %}
+{%- if model.data_dir is string %}
+data_dir = {{ model.data_dir | json }}
+{%- else %}
 data_dir = [
-{%- for ds in datapaths %}
-  { path = {{ ds.path | json }}{{ (', capacity = ' ~ ((ds.capacity ~ 'GiB') | json)) if ds.capacity > 0 else '' }} }{{ "," if not loop.last else "" }}
+{%- for dir in model.data_dir %}
+  { path = {{ dir.path | json }}, capacity = {{ dir.capacity | json }} }{{ "," if not loop.last else "" }}
 {%- endfor %}
 ]
+{%- endif %}
 
 [s3_api]
 s3_region = {{ instance.s3region | json }}
-api_bind_addr = {{ ('[::]:' ~ instance.s3port) | json }}
+api_bind_addr = {{ ('[::]:' ~ model.ports.s3) | json }}
 {% if instance.s3rootdomain | length > 0 %}
 root_domain = {{ instance.s3rootdomain | json }}
 {% endif %}
 
 [admin]
-api_bind_addr = {{ ('127.0.0.1:' ~ instance.adminport) | json }}
+api_bind_addr = {{ ('127.0.0.1:' ~ model.ports.admin) | json }}
 admin_token = {{ instance.admintoken | json }}
-{% if instance.webenable %}
+{% if model.ports.web %}
 [s3_web]
-bind_addr = {{ ('[::]:' ~ instance.webport) | json }}
+bind_addr = {{ ('[::]:' ~ model.ports.web) | json }}
 {% if instance.webrootdomain | length > 0 %}
 root_domain = {{ instance.webrootdomain | json }}
 {% endif %}

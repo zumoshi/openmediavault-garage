@@ -1,9 +1,9 @@
 #!/usr/bin/php
 <?php
 /**
- * Bootstrap a single-node Garage instance: wait for the daemon, assign the
- * layout role with the aggregated datastore capacity, and keep the role in
- * sync when the capacity changes. Idempotent.
+ * Bootstrap a single-node Garage instance: wait for the daemon and assign
+ * the layout role with the capacity from the render model. The role is
+ * assigned again only when that configured capacity changes. Idempotent.
  *
  * Usage: bootstrap-instance.php <name> <capacity-in-bytes>
  *
@@ -11,8 +11,8 @@
  * @license https://www.gnu.org/licenses/gpl.html GPL Version 3
  */
 
-if ($argc < 3) {
-	fwrite(STDERR, "usage: bootstrap-instance.php <name> <capacity-in-bytes> [data-dir ...]\n");
+if ($argc !== 3 || intval($argv[2]) < 1024) {
+	fwrite(STDERR, "usage: bootstrap-instance.php <name> <capacity-in-bytes>\n");
 	exit(2);
 }
 
@@ -20,24 +20,6 @@ $name = $argv[1];
 $capacity = intval($argv[2]);
 $zone = getenv("OMV_GARAGE_ZONE") ?: "omv";
 $configPath = "/etc/garage/" . $name . ".toml";
-
-// With no explicit datastore capacities, size the layout from the free
-// space of the data locations, quantized to GiB so repeated applies stay
-// stable while the free space drifts.
-if ($capacity <= 0) {
-	$free = 0;
-	for ($i = 3; $i < $argc; $i++) {
-		$bytes = @disk_free_space($argv[$i]);
-		if (is_float($bytes) && $bytes > 0) {
-			$free += $bytes;
-		}
-	}
-	$capacity = intval(intval($free * 0.9 / 1073741824) * 1073741824);
-	if ($capacity <= 0) {
-		fwrite(STDERR, "no usable capacity found in the data directories\n");
-		exit(1);
-	}
-}
 
 if (!is_readable($configPath)) {
 	fwrite(STDERR, "config not readable: $configPath\n");
@@ -114,7 +96,6 @@ foreach ($layout["stagedRoleChanges"] ?? [] as $role) {
 
 if ($layoutVersion > 0 && !is_null($existingRole)
 		&& intval($existingRole["capacity"] ?? 0) === $capacity) {
-	// Already converged. Update the staged role if the node id changed.
 	exit(0);
 }
 
