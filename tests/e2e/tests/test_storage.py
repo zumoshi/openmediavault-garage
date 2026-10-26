@@ -72,9 +72,6 @@ def test_datastore_removal_keeps_objects(ssh, rpc, shares, make_instance,
     all_readable()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
-    "REVIEW 2.10: removing a datastore leaves u:garage in its shared "
-    "folder's ACL"))
 def test_datastore_removal_revokes_acl(ssh, rpc, shares, make_instance):
     name, info = make_instance(extra_datastore=True)
     ds_path = shares.path(info["datastore_share"])
@@ -84,6 +81,8 @@ def test_datastore_removal_revokes_acl(ssh, rpc, shares, make_instance):
                       lambda: ssh.wait_unit_running(f"garage@{name}"))
     assert not instance.garage_acl(ssh, ds_path), \
         f"{ds_path} still grants u:garage after its datastore was removed"
+    left = ssh.out(f"find {shquote(ds_path)} -mindepth 1")
+    assert not left, f"garage left this in the removed datastore: {left}"
 
 
 def _rebalances(ssh, name: str) -> list[dict]:

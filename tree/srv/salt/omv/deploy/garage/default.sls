@@ -1,6 +1,9 @@
 {% set _ = salt['omv_utils.register_jinja_filters']() %}
 
 {%- set instances = salt['omv_conf.get']('conf.service.garage.instance') %}
+{#- Everything the instances need, decided by the plugin's PHP code. #}
+{%- set render = salt['cmd.run_all'](['/usr/bin/php', '/usr/share/openmediavault/garage/render-instances.php']) %}
+{%- set rendered = render.stdout | load_json if render.retcode == 0 else {'instances': {}, 'unused_shares': []} %}
 {%- set etcdir = '/etc/garage' %}
 {%- set nginxd = '/etc/nginx/openmediavault-webgui.d' %}
 
@@ -18,17 +21,22 @@ configure_garage_nginx_dir:
     - group: root
     - mode: '0755'
 
-{% for instance in instances | selectattr('enable') %}
-{% set name = instance.name %}
-{#- Everything this instance needs, decided by the plugin's PHP code. #}
-{%- set render = salt['cmd.run_all'](['/usr/bin/php', '/usr/share/openmediavault/garage/render-instance.php', name]) %}
-
 {% if render.retcode != 0 %}
-render_garage_{{ name }}:
+render_garage:
   test.fail_without_changes:
     - comment: {{ render.stderr | json }}
+{% endif %}
+
+{% for instance in instances | selectattr('enable') %}
+{% set name = instance.name %}
+{%- set result = rendered.instances[name] | default({'error': 'garage@' ~ name ~ ': not rendered'}) %}
+
+{% if 'error' in result %}
+render_garage_{{ name }}:
+  test.fail_without_changes:
+    - comment: {{ result.error | json }}
 {% else %}
-{%- set model = render.stdout | load_json %}
+{%- set model = result.model %}
 
 {% if model.dirs | length > 0 %}
 configure_garage_dirs_{{ name }}:
@@ -81,12 +89,12 @@ configure_garage_drop_in_{{ name }}:
 configure_garage_acl_{{ name }}:
   cmd.run:
     - names:
-{%- for path in model.shares %}
-      - {{ ('setfacl -m u:garage:rwX ' ~ path | quote) | json }}
+{%- for path, perms in model.shares.items() %}
+      - {{ ('setfacl -m u:garage:' ~ perms ~ ' ' ~ path | quote) | json }}
 {%- endfor %}
     - unless:
-{%- for path in model.shares %}
-      - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:rw'") | json }}
+{%- for path, perms in model.shares.items() %}
+      - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:" ~ perms ~ "'") | json }}
 {%- endfor %}
 
 garage_systemd_reload_{{ name }}:
@@ -174,6 +182,21 @@ purge_garage_webui_env_{{ name }}:
 {% endif %}
 {% endif %}
 
+{% endfor %}
+
+{#- Shared folders no instance uses lose the garage ACL. A drained
+    datastore also loses the marker and the empty hash directories garage
+    left in it. #}
+{% for path in rendered.unused_shares %}
+revoke_garage_acl_{{ loop.index }}:
+  cmd.run:
+    - name: |
+        if [ -f {{ (path ~ 'garage-marker') | quote }} ] &&
+          [ -z "$(find {{ path | quote }} -type f ! -name garage-marker -print -quit)" ]; then
+          find {{ path | quote }} -mindepth 1 -maxdepth 2 -type d -name '[0-9a-f][0-9a-f]' -empty -delete &&
+            rm {{ (path ~ 'garage-marker') | quote }}
+        fi && setfacl -x u:garage {{ path | quote }}
+    - onlyif: {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") | json }}
 {% endfor %}
 
 {#- Clean up instances that were deleted from the configuration. #}
