@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 use function OMV\Garage\renderModel;
 use function OMV\Garage\storageError;
+use function OMV\Garage\unusedShares;
 
 final class RenderModelTest extends TestCase
 {
@@ -42,9 +43,11 @@ final class RenderModelTest extends TestCase
         ];
     }
 
-    private static function datastore(string $share, int $capacity): array
+    private static function datastore(string $share, int $capacity,
+        string $state = "active"): array
     {
-        return ["shareuuid" => $share, "capacity" => $capacity];
+        return ["shareuuid" => $share, "capacity" => $capacity,
+            "state" => $state];
     }
 
     public function testStorageFolderAloneIsOneDataDirWithoutCapacity(): void
@@ -55,9 +58,10 @@ final class RenderModelTest extends TestCase
             "data_dir" => "/srv/disk/my store/data",
             "ports" => ["s3" => 3900, "rpc" => 3901, "admin" => 3903,
                 "web" => null, "webui" => null],
-            "paths" => ["/srv/disk/my store/"],
+            "shares" => ["/srv/disk/my store/" => "--x"],
             "dirs" => ["/srv/disk/my store/meta", "/srv/disk/my store/data"],
             "layout_capacity" => 1024 ** 4,
+            "drain" => false,
         ], renderModel(self::instance(), [], self::PATHS));
     }
 
@@ -73,8 +77,9 @@ final class RenderModelTest extends TestCase
             ["path" => "/srv/disk2/ds2/", "capacity" => "1GiB"],
         ], $model["data_dir"]);
         self::assertSame(26 * 1024 ** 3, $model["layout_capacity"]);
-        self::assertSame(["/srv/disk/my store/", "/srv/disk1/ds1/",
-            "/srv/disk2/ds2/"], $model["paths"]);
+        self::assertSame(["/srv/disk/my store/" => "--x",
+            "/srv/disk1/ds1/" => "rwx", "/srv/disk2/ds2/" => "rwx"],
+            $model["shares"]);
     }
 
     public function testSeparateMetadataFolderKeepsDataOnTheDatastores(): void
@@ -87,8 +92,9 @@ final class RenderModelTest extends TestCase
         self::assertSame([["path" => "/srv/disk1/ds1/", "capacity" => "5GiB"]],
             $model["data_dir"]);
         self::assertSame(["/srv/ssd/meta/meta"], $model["dirs"]);
-        self::assertSame(["/srv/disk/my store/", "/srv/ssd/meta/",
-            "/srv/disk1/ds1/"], $model["paths"]);
+        self::assertSame(["/srv/disk/my store/" => "--x",
+            "/srv/ssd/meta/" => "--x", "/srv/disk1/ds1/" => "rwx"],
+            $model["shares"]);
         self::assertSame(5 * 1024 ** 3, $model["layout_capacity"]);
     }
 
@@ -105,10 +111,12 @@ final class RenderModelTest extends TestCase
             ],
             "ports" => ["s3" => 3900, "rpc" => 3901, "admin" => 3903,
                 "web" => null, "webui" => 3910],
-            "paths" => ["/srv/disk/my store/", "/srv/disk/snaps/",
-                "/srv/disk1/ds1/", "/srv/disk2/ds2/"],
+            "shares" => ["/srv/disk/my store/" => "rwx",
+                "/srv/disk/snaps/" => "rwx", "/srv/disk1/ds1/" => "rwx",
+                "/srv/disk2/ds2/" => "rwx"],
             "dirs" => [],
             "layout_capacity" => 15 * 1024 ** 3,
+            "drain" => false,
         ], renderModel(self::instance(["storagesplit" => true,
             "metadatashareuuid" => self::STORAGE,
             "snapshotsshareuuid" => self::SNAPS, "webuienable" => true]),
@@ -153,11 +161,96 @@ final class RenderModelTest extends TestCase
 
     public function testStorageRules(): void
     {
+        $active = self::datastore(self::DS1, 5);
         self::assertSame(
             [null, null, StorageError::NoStorageCapacity, null,
                 StorageError::NoDatastore, null],
-            [storageError(false, 0, 0), storageError(false, 20, 0),
-                storageError(false, 0, 1), storageError(false, 20, 2),
-                storageError(true, 20, 0), storageError(true, 0, 1)]);
+            [storageError(false, 0, []), storageError(false, 20, []),
+                storageError(false, 0, [$active]),
+                storageError(false, 20, [$active, $active]),
+                storageError(true, 20, []), storageError(true, 0, [$active])]);
+    }
+
+    public function testDrainingDatastoresDoNotCountAsStorage(): void
+    {
+        $active = self::datastore(self::DS1, 5);
+        $draining = self::datastore(self::DS2, 5, "draining");
+        self::assertSame(
+            [StorageError::NoDatastore, null, StorageError::NoStorageCapacity,
+                null],
+            [storageError(true, 0, [$draining]),
+                storageError(true, 0, [$draining, $active]),
+                storageError(false, 0, [$draining]),
+                storageError(false, 20, [$draining])]);
+    }
+
+    public function testDrainingDatastoreIsReadOnlyWithoutCapacity(): void
+    {
+        $model = renderModel(self::instance(["storagecapacity" => 20]),
+            [self::datastore(self::DS1, 5),
+                self::datastore(self::DS2, 7, "draining")],
+            self::PATHS);
+
+        self::assertSame([
+            ["path" => "/srv/disk/my store/data", "capacity" => "20GiB"],
+            ["path" => "/srv/disk1/ds1/", "capacity" => "5GiB"],
+            ["path" => "/srv/disk2/ds2/", "read_only" => true],
+        ], $model["data_dir"]);
+        self::assertSame(25 * 1024 ** 3, $model["layout_capacity"]);
+        self::assertSame("rwx", $model["shares"]["/srv/disk2/ds2/"]);
+        self::assertTrue($model["drain"]);
+    }
+
+    public function testLastDatastoreDrainingKeepsTheListForm(): void
+    {
+        $model = renderModel(self::instance(["storagecapacity" => 20]),
+            [self::datastore(self::DS1, 5, "draining")], self::PATHS);
+
+        self::assertSame([
+            ["path" => "/srv/disk/my store/data", "capacity" => "20GiB"],
+            ["path" => "/srv/disk1/ds1/", "read_only" => true],
+        ], $model["data_dir"]);
+        self::assertSame(20 * 1024 ** 3, $model["layout_capacity"]);
+    }
+
+    public function testSplitInstanceDrainsOntoItsOtherDatastores(): void
+    {
+        $model = renderModel(self::instance(["storagesplit" => true,
+            "metadatashareuuid" => self::META]),
+            [self::datastore(self::DS1, 5, "draining"),
+                self::datastore(self::DS2, 3)], self::PATHS);
+
+        self::assertSame([
+            ["path" => "/srv/disk1/ds1/", "read_only" => true],
+            ["path" => "/srv/disk2/ds2/", "capacity" => "3GiB"],
+        ], $model["data_dir"]);
+        self::assertSame(3 * 1024 ** 3, $model["layout_capacity"]);
+    }
+
+    public function testSnapshotsInTheStorageFolderNeedWriteAccessToIt(): void
+    {
+        $model = renderModel(self::instance(
+            ["snapshotsshareuuid" => self::STORAGE]), [], self::PATHS);
+
+        self::assertSame(["/srv/disk/my store/" => "rwx"], $model["shares"]);
+    }
+
+    public function testUnusedSharesAreTheOnesNoInstanceUses(): void
+    {
+        $one = renderModel(self::instance(), [], self::PATHS);
+        $two = renderModel(self::instance(["storageshareuuid" => self::META,
+            "storagecapacity" => 20]),
+            [self::datastore(self::DS1, 5, "draining")], self::PATHS);
+
+        self::assertSame(["/srv/disk/snaps/", "/srv/disk2/ds2/"],
+            unusedShares(array_values(self::PATHS), [$one, $two]));
+    }
+
+    public function testNoShareIsUnusedWhenAnInstanceCannotRender(): void
+    {
+        $one = renderModel(self::instance(), [], self::PATHS);
+
+        self::assertSame([],
+            unusedShares(array_values(self::PATHS), [$one, null]));
     }
 }
