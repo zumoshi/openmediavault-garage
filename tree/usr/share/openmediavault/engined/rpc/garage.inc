@@ -123,14 +123,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				(new SystemCtl("omv-garage-webui@" . $name))->isActive();
 			$assoc["status"] = empty($assoc["enable"]) ? "disabled"
 				: ($assoc["running"] ? "running" : "stopped");
-			$datastores = $db->get("conf.service.garage.datastore");
-			$count = 0;
-			foreach ($datastores as $dsv) {
-				if ($dsv->get("instanceuuid") === $assoc["uuid"]) {
-					$count++;
-				}
-			}
-			$assoc["datastorecount"] = $count;
+			$assoc["datastorecount"] = count($this->datastores($db, $assoc["uuid"]));
 			$objectsAssoc[] = $assoc;
 		}
 		return $this->applyFilter($objectsAssoc, $params["start"], $params["limit"],
@@ -346,10 +339,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		// Revoke ACLs that are no longer needed.
 		$this->revokeAcls($db, $object);
 
-		foreach ($db->get("conf.service.garage.datastore") as $datastore) {
-			if ($datastore->get("instanceuuid") === $params["uuid"]) {
-				$db->delete($datastore);
-			}
+		foreach ($this->datastores($db, $params["uuid"]) as $datastore) {
+			$db->delete($datastore);
 		}
 
 		$db->delete($object);
@@ -417,13 +408,11 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		$this->validateMethodContext($context, ["role" => OMV_ROLE_ADMINISTRATOR]);
 		$this->validateMethodParams($params, "rpc.garage.getlist");
 		$db = \OMV\Config\Database::getInstance();
-		$objects = $db->get("conf.service.garage.datastore");
+		$objects = empty($params["instanceuuid"])
+			? $db->get("conf.service.garage.datastore")
+			: $this->datastores($db, $params["instanceuuid"]);
 		$objectsAssoc = [];
 		foreach ($objects as $objectv) {
-			if (!empty($params["instanceuuid"]) &&
-				$objectv->get("instanceuuid") !== $params["instanceuuid"]) {
-				continue;
-			}
 			$assoc = $objectv->getAssoc();
 			$assoc["sharedfoldername"] = $this->getSharedFolderName(
 				$db, $objectv->get("shareuuid"));
@@ -809,24 +798,12 @@ class OMVRpcServiceGarage extends ServiceAbstract
 	private function revokeAcls($db, $instance)
 	{
 		$uuid = $instance->get("uuid");
-		$shares = $this->instanceShares($instance);
-		foreach ($db->get("conf.service.garage.datastore") as $dsv) {
-			if ($dsv->get("instanceuuid") === $uuid) {
-				$shares[] = $dsv->get("shareuuid");
-			}
-		}
-		// Find shares still used by other instances, including their
-		// datastores. Those keep their ACL.
+		$shares = $this->instanceShares($db, $instance);
+		// Shares still used by other instances keep their ACL.
 		$stillUsed = [];
 		foreach ($db->get("conf.service.garage.instance") as $instancev) {
-			if ($instancev->get("uuid") === $uuid) {
-				continue;
-			}
-			array_push($stillUsed, ...$this->instanceShares($instancev));
-		}
-		foreach ($db->get("conf.service.garage.datastore") as $dsv) {
-			if ($dsv->get("instanceuuid") !== $uuid) {
-				$stillUsed[] = $dsv->get("shareuuid");
+			if ($instancev->get("uuid") !== $uuid) {
+				array_push($stillUsed, ...$this->instanceShares($db, $instancev));
 			}
 		}
 		foreach (array_unique($shares) as $shareUuid) {
@@ -845,12 +822,24 @@ class OMVRpcServiceGarage extends ServiceAbstract
 		}
 	}
 
-	// The instance's own folders that are set: storage, metadata, snapshots.
-	private function instanceShares($instance): array
+	// Every shared folder the instance uses: storage, metadata, snapshots
+	// and datastores.
+	private function instanceShares($db, $instance): array
 	{
-		return array_filter([$instance->get("storageshareuuid"),
+		return array_merge(array_filter([$instance->get("storageshareuuid"),
 			$instance->get("metadatashareuuid"),
 			$instance->get("snapshotsshareuuid")],
-			fn($share) => strlen($share) === 36);
+			fn($share) => strlen($share) === 36),
+			array_map(fn($datastore) => $datastore->get("shareuuid"),
+				$this->datastores($db, $instance->get("uuid"))));
+	}
+
+	private function datastores($db, string $instanceUuid): array
+	{
+		return $db->getByFilter("conf.service.garage.datastore", [
+			"operator" => "stringEquals",
+			"arg0" => "instanceuuid",
+			"arg1" => $instanceUuid
+		]);
 	}
 }
