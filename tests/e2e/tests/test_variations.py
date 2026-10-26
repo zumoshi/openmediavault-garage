@@ -10,6 +10,7 @@ import pytest
 from playwright.sync_api import expect
 
 from garage_tester import instance, s3, ui
+from garage_tester.rpc import NEW_UUID, RpcError
 from garage_tester.ssh import shquote
 
 
@@ -94,6 +95,30 @@ def test_split_storage(page, cfg, ssh, shares, make_instance, s3_setup):
     conn = s3_setup(name, info["uuid"])
     s3.round_trip(conn["endpoint"], conn["key_id"],
                   conn["secret"], conn["bucket"], b"split storage works")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.7: an enabled instance with a separate metadata folder and no "
+    "datastore is saved, and its apply fails because garage has no data "
+    "folder"))
+def test_split_without_datastore_is_rejected(rpc, shares):
+    suffix = secrets.token_hex(3)
+    name = f"gt{suffix}"
+    params = rpc.call("Garage", "getInstance", {"uuid": NEW_UUID})
+    params.update(
+        name=name, storagesplit=True,
+        storageshareuuid=shares.uuid_by_name(shares.create(f"gt{suffix}a")),
+        metadatashareuuid=shares.uuid_by_name(shares.create(f"gt{suffix}b")))
+    try:
+        rpc.call("Garage", "setInstance", params)
+        error = None
+    except RpcError as e:
+        error = str(e)
+    finally:
+        if name in [i["name"] for i in rpc.enumerate_instances()]:
+            rpc.delete_instance(name)
+    assert error and "datastore" in error, \
+        f"setInstance of an enabled split instance without datastore: {error}"
 
 
 def test_custom_ports(page, cfg, ssh, make_instance, s3_setup):

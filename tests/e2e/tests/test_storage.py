@@ -1,5 +1,5 @@
 """Where an instance keeps its data: removing a datastore, and a storage
-folder on a small filesystem."""
+folder on a small or filling filesystem."""
 
 import secrets
 import time
@@ -8,6 +8,7 @@ import pytest
 
 from garage_tester import filesystems, instance, s3
 from garage_tester.rpc import RpcError
+from garage_tester.ssh import shquote
 
 OBJECTS = 80
 OBJECT_SIZE = 64 * 1024
@@ -89,14 +90,19 @@ def test_datastore_removal_revokes_acl(ssh, rpc, shares, make_instance):
 
 
 @pytest.fixture()
-def small_share(ssh, rpc, shares):
-    """A shared folder on its own 1 GiB filesystem: less free space than
-    the 1.1 GiB the storage folder's capacity needs."""
-    name = f"gt{secrets.token_hex(3)}"
-    try:
-        mount = filesystems.create(ssh, rpc, name, "1G")
-        yield shares.create(name, mntentref=mount)
-    finally:
+def share_on_filesystem(ssh, rpc, shares):
+    """Make a shared folder on its own filesystem of `size` (truncate
+    syntax). Returns its name."""
+    made: list[str] = []
+
+    def _make(size: str) -> str:
+        name = f"gt{secrets.token_hex(3)}"
+        made.append(name)
+        mount = filesystems.create(ssh, rpc, name, size)
+        return shares.create(name, mntentref=mount)
+
+    yield _make
+    for name in made:
         if name in shares.names():
             shares.delete([name])
         filesystems.remove(ssh, rpc, name)
@@ -105,8 +111,34 @@ def small_share(ssh, rpc, shares):
 @pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
     "REVIEW 2.7: the storage capacity is 90% of free space floored to GiB, "
     "so below 1.1 GiB free it renders no capacity and garage never starts"))
-def test_storage_on_small_filesystem(small_share, make_instance, s3_setup):
-    name, info = make_instance(storage_share=small_share)
+def test_storage_on_small_filesystem(share_on_filesystem, make_instance,
+                                     s3_setup):
+    """A 1 GiB filesystem has less free space than the 1.1 GiB the storage
+    folder's capacity needed."""
+    name, info = make_instance(storage_share=share_on_filesystem("1G"))
     conn = s3_setup(name, info["uuid"])
     s3.round_trip(conn["endpoint"], conn["key_id"], conn["secret"],
                   conn["bucket"], b"small filesystem works")
+
+
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "REVIEW 2.7: the storage capacity follows free space, so an apply after "
+    "the disk filled up rewrites the toml, restarts garage and bumps the "
+    "layout"))
+def test_filling_the_disk_changes_nothing_on_apply(ssh, rpc, shares,
+                                                   share_on_filesystem,
+                                                   make_instance):
+    share = share_on_filesystem("4G")
+    name, info = make_instance(storage_share=share)
+    unit = f"garage@{name}"
+
+    def pid_and_layout() -> tuple[int, int]:
+        return (ssh.unit_state(unit)["MainPID"],
+                instance.garage_json(ssh, name, "GetClusterLayout")["version"])
+
+    before = pid_and_layout()
+    ssh.out(f"fallocate -l 2G {shquote(shares.path(share) + '/filler')}")
+    rpc.apply(["garage"])
+    ssh.wait_unit_running(unit)
+    assert pid_and_layout() == before, \
+        "(garage PID, layout version) before and after filling the disk"
