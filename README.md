@@ -41,12 +41,17 @@ plugin under **Services > Garage**.
 
 Workflow per instance:
 
-1. Create an instance: name, ports, metadata shared folder.
-2. Add datastores (shared folders + capacity).
+1. Create an instance: name, ports, storage shared folder. A storage folder
+   alone is one data folder and needs no capacity.
+2. Optionally add datastores (shared folders + capacity in GiB). Garage then
+   needs a capacity on every data folder, so the instance also needs its
+   storage folder capacity. Capacities are placement weights, not limits.
+   With a separate metadata shared folder the data lives on datastores
+   only, so such an instance can be enabled once it has one.
 3. Apply the pending configuration changes (top bar checkmark). The salt
    deploy renders `/etc/garage/<name>.toml`, the systemd drop-in, ACLs, and
    starts `garage@<name>`, then bootstraps the single-node layout with the
-   aggregated datastore capacity.
+   sum of the capacities (1 TiB without datastores).
 4. Create buckets, keys and permissions in the instance's details view.
    These take effect at once in the running instance, with no apply.
 5. Point S3 clients at `http://<omv>:<s3port>` with the region and a key.
@@ -97,6 +102,9 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
 - `tree/usr/share/openmediavault/engined/module/garage.inc` - deploy module
 - `tree/srv/salt/omv/deploy/garage/` - salt state: toml, secrets, drop-ins,
   ACLs, units, nginx locations, orphan cleanup
+- `tree/usr/share/openmediavault/garage/lib/render.php` - the render model:
+  every path, data folder, port and the layout capacity of an instance;
+  `render-instance.php` prints it as JSON for the salt state
 - `tree/usr/share/openmediavault/garage/bootstrap-instance.php` - idempotent
   single-node layout bootstrap (wait, assign, apply, converge capacity)
 - `tree/var/www/openmediavault/garage-sso/` - one-click web UI sign-in page,
