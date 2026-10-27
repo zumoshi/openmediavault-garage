@@ -153,6 +153,46 @@ def test_disabled_instance(page, cfg, ssh, make_instance):
     assert not ssh.file_exists(f"/etc/garage/{name}.rpc_secret")
 
 
+@pytest.mark.xfail(strict=True, reason="REVIEW 2.11")
+def test_disabling_stops_instance_and_reenabling_keeps_data(
+        page, cfg, ssh, rpc, shares, make_instance, s3_setup):
+    name, info = make_instance(webui=True)
+    units = (f"garage@{name}", f"omv-garage-webui@{name}")
+    ssh.wait_unit_running(units[1])
+    conn = s3_setup(name, info["uuid"])
+    s3.round_trip(conn["endpoint"], conn["key_id"], conn["secret"],
+                  conn["bucket"], b"kept while disabled")
+    ui.open_edit_form(page, cfg.host, info["uuid"], name)
+    ui.touch_form(page)
+    params = ui.capture_form_post(page)
+
+    rpc.call("Garage", "setInstance", {**params, "enable": False})
+    rpc.apply(["garage"])
+    for unit in units:
+        active = ssh.run(f"systemctl is-active {unit}", check=False)[1].strip()
+        enabled = ssh.run(f"systemctl is-enabled {unit}", check=False)[1].strip()
+        assert (active, enabled) == ("inactive", "disabled"), \
+            f"{unit} is {active}/{enabled} after disabling the instance"
+    for path in (f"/etc/garage/{name}.toml", f"/etc/garage/{name}.rpc_secret",
+                 f"/etc/garage/{name}.webui.env",
+                 f"/etc/systemd/system/garage@{name}.service.d",
+                 f"/etc/nginx/openmediavault-webgui.d/garage-webui-{name}.conf"):
+        assert not ssh.file_exists(path), \
+            f"{path} kept after disabling, a disabled instance has no files"
+    storpath = shares.path(info["storage_share"])
+    assert instance.garage_acl(ssh, storpath), \
+        "disabling revoked the garage ACL on the storage folder"
+
+    rpc.call("Garage", "setInstance", {**params, "enable": True})
+    rpc.apply(["garage"])
+    for unit in units:
+        ssh.wait_unit_running(unit)
+    instance.wait_health(ssh, params["adminport"])
+    got = s3.client(conn["endpoint"], conn["key_id"], conn["secret"]) \
+        .get_object(Bucket=conn["bucket"], Key="tester.txt")["Body"].read()
+    assert got == b"kept while disabled", "re-enabling lost the object"
+
+
 def test_delete_cleanup(page, cfg, ssh, shares, make_instance):
     name, info = make_instance(webui=True)
     storpath = shares.path(info["storage_share"])
