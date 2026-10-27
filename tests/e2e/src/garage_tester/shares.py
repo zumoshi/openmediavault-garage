@@ -6,6 +6,11 @@ from .rpc import NEW_UUID, Rpc
 from .ssh import Ssh
 
 
+# A shared folder change dirties systemd too, and a deletion queues a
+# task. The workbench applies every dirty module, so the suite does too.
+MODULES = ["sharedfolders", "systemd", "task"]
+
+
 class Shares:
     def __init__(self, ssh: Ssh, rpc: Rpc, disk: str):
         self.ssh = ssh
@@ -34,7 +39,7 @@ class Shares:
             "mntentref": mntentref or self._mount()["uuid"],
             "mode": "775",
         })
-        self.rpc.apply(["sharedfolders"])
+        self.rpc.apply(MODULES)
         self._created.append(name)
         return name
 
@@ -49,7 +54,7 @@ class Shares:
             if name in self._created:
                 self._created.remove(name)
         if names:
-            self.rpc.apply(["sharedfolders"])
+            self.rpc.apply(MODULES)
 
     def names(self) -> list[str]:
         return [s["name"] for s in self.ssh.confdb("conf.system.sharedfolder")]

@@ -2,6 +2,7 @@
 filesystem and user it creates is named gt<6 hex>, optionally followed by a suffix
 letter."""
 
+import json
 import re
 
 from . import filesystems
@@ -50,3 +51,9 @@ def leftovers(ssh) -> list[str]:
     found += [f"filesystem {name}" for name in sorted(filesystems.names(ssh))
               if is_test_name(name)]
     return found
+
+
+def dirty_modules(ssh) -> set[str]:
+    """The OMV modules with changes waiting for an apply."""
+    return set(json.loads(ssh.out(
+        "cat /var/lib/openmediavault/dirtymodules.json 2>/dev/null || echo []")))

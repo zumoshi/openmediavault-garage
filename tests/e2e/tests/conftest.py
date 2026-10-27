@@ -7,7 +7,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from garage_tester import filesystems, instance, ui
-from garage_tester.leaks import is_test_name, leftovers, users
+from garage_tester.leaks import dirty_modules, is_test_name, leftovers, users
 from garage_tester.rpc import NEW_UUID, Rpc
 from garage_tester.settings import Settings
 from garage_tester.shares import Shares
@@ -155,13 +155,17 @@ def fresh_page(browser):
 
 @pytest.fixture(scope="session", autouse=True)
 def no_leaks(ssh, cleanup_stale):
-    """Fail the run if anything the suite creates is left on the box.
-    Autouse and session scoped, so it is set up before and torn down after
-    every other fixture that creates state."""
+    """Fail the run if anything the suite creates is left on the box, or
+    if it leaves OMV modules dirty that were clean before. Autouse and
+    session scoped, so it is set up before and torn down after every other
+    fixture that creates state."""
     if found := leftovers(ssh):
         pytest.fail("box not clean after cleanup_stale:\n  "
                     + "\n  ".join(found), pytrace=False)
+    dirty = dirty_modules(ssh)
     yield
-    if found := leftovers(ssh):
+    found = leftovers(ssh)
+    found += [f"dirty OMV module {m}" for m in sorted(dirty_modules(ssh) - dirty)]
+    if found:
         pytest.fail("the suite leaked:\n  " + "\n  ".join(found),
                     pytrace=False)
