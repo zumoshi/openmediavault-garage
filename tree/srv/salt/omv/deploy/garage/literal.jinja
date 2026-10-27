@@ -1,0 +1,13 @@
+{#- A value as a JSON literal that is also a valid YAML and TOML value,
+    and survives file.managed contents. Salt's json filter leaves DEL, the
+    C1 controls (U+007F to U+009F) and U+2028/U+2029 raw: Salt's YAML
+    reader rejects them or folds NEL into a space, TOML forbids DEL, and
+    contents split lines at NEL, U+2028 and U+2029. A shared folder path
+    can hold them all. #}
+{%- macro literal(value) -%}
+{%- set out = namespace(text=value | json) -%}
+{%- for code in range(127, 160) | list + [8232, 8233] -%}
+{%- set out.text = out.text | replace('%c' | format(code), '\\u%04x' | format(code)) -%}
+{%- endfor -%}
+{{- out.text -}}
+{%- endmacro -%}

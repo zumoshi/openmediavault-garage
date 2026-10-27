@@ -1,4 +1,5 @@
 {% set _ = salt['omv_utils.register_jinja_filters']() %}
+{%- from 'omv/deploy/garage/literal.jinja' import literal %}
 
 {%- set instances = salt['omv_conf.get']('conf.service.garage.instance') %}
 {#- Everything the instances need, decided by the plugin's PHP code. #}
@@ -24,14 +25,14 @@ configure_garage_nginx_dir:
 {% if render.retcode != 0 %}
 render_garage:
   test.fail_without_changes:
-    - comment: {{ render.stderr | json }}
+    - comment: {{ literal(render.stderr) }}
 {% else %}
 {#- Every shared folder the plugin grants the garage ACL on is recorded
     before the grant, so later applies revoke only the plugin's own ACLs. #}
 record_garage_acls:
   file.managed:
     - name: {{ rendered.acls.record }}
-    - contents: {{ rendered.acls.granted | json | json }}
+    - contents: {{ literal(literal(rendered.acls.granted)) }}
     - makedirs: True
     - user: root
     - group: root
@@ -45,7 +46,7 @@ record_garage_acls:
 {% if 'error' in result %}
 render_garage_{{ name }}:
   test.fail_without_changes:
-    - comment: {{ result.error | json }}
+    - comment: {{ literal(result.error) }}
 {% else %}
 {%- set model = result.model %}
 
@@ -54,7 +55,7 @@ configure_garage_dirs_{{ name }}:
   file.directory:
     - names:
 {%- for d in model.dirs %}
-      - {{ d | json }}
+      - {{ literal(d) }}
 {%- endfor %}
     - user: garage
     - group: garage
@@ -68,8 +69,8 @@ configure_garage_toml_{{ name }}:
       - salt://{{ tpldir }}/files/garage.toml.j2
     - template: jinja
     - context:
-        instance: {{ instance | json }}
-        model: {{ model | json }}
+        instance: {{ literal(instance) }}
+        model: {{ literal(model) }}
     - user: root
     - group: garage
     - mode: '0640'
@@ -77,7 +78,7 @@ configure_garage_toml_{{ name }}:
 configure_garage_rpc_secret_{{ name }}:
   file.managed:
     - name: {{ etcdir }}/{{ name }}.rpc_secret
-    - contents: {{ instance.rpcsecret | json }}
+    - contents: {{ literal(instance.rpcsecret) }}
     - user: garage
     - group: garage
     - mode: '0600'
@@ -90,9 +91,9 @@ configure_garage_drop_in_{{ name }}:
       - salt://{{ tpldir }}/files/instance-override.conf.j2
     - template: jinja
     - context:
-        instance: {{ instance | json }}
-        paths: {{ model.shares | list | json }}
-        drain: {{ model.drain | json }}
+        instance: {{ literal(instance) }}
+        paths: {{ literal(model.shares | list) }}
+        drain: {{ literal(model.drain) }}
     - user: root
     - group: root
     - mode: '0644'
@@ -101,11 +102,11 @@ configure_garage_acl_{{ name }}:
   cmd.run:
     - names:
 {%- for path, perms in model.shares.items() %}
-      - {{ ('setfacl -m u:garage:' ~ perms ~ ' ' ~ path | quote) | json }}
+      - {{ literal('setfacl -m u:garage:' ~ perms ~ ' ' ~ path | quote) }}
 {%- endfor %}
     - unless:
 {%- for path, perms in model.shares.items() %}
-      - {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:" ~ perms ~ "'") | json }}
+      - {{ literal('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:" ~ perms ~ "'") }}
 {%- endfor %}
     - require:
       - file: record_garage_acls
@@ -130,7 +131,7 @@ start_garage_{{ name }}:
 
 bootstrap_garage_{{ name }}:
   cmd.run:
-    - name: {{ ['/usr/bin/php', '/usr/share/openmediavault/garage/bootstrap-instance.php', name, model.layout_capacity | string] | map('quote') | join(' ') | json }}
+    - name: {{ literal(['/usr/bin/php', '/usr/share/openmediavault/garage/bootstrap-instance.php', name, model.layout_capacity | string] | map('quote') | join(' ')) }}
     - require:
       - service: start_garage_{{ name }}
 
@@ -144,9 +145,9 @@ configure_garage_webui_env_{{ name }}:
       - salt://{{ tpldir }}/files/webui.env.j2
     - template: jinja
     - context:
-        instance: {{ instance | json }}
-        ports: {{ model.ports | json }}
-        passwordhash: {{ salt['cmd.run'](['/usr/bin/php', '/usr/share/openmediavault/garage/webui-password-hash.php', webuienv], stdin=instance.webuipassword) | json }}
+        instance: {{ literal(instance) }}
+        ports: {{ literal(model.ports) }}
+        passwordhash: {{ literal(salt['cmd.run'](['/usr/bin/php', '/usr/share/openmediavault/garage/webui-password-hash.php', webuienv], stdin=instance.webuipassword)) }}
     - user: root
     - group: garage
     - mode: '0640'
@@ -167,8 +168,8 @@ configure_garage_webui_nginx_{{ name }}:
       - salt://{{ tpldir }}/files/nginx-webui.conf.j2
     - template: jinja
     - context:
-        instance: {{ instance | json }}
-        ports: {{ model.ports | json }}
+        instance: {{ literal(instance) }}
+        ports: {{ literal(model.ports) }}
     - user: root
     - group: root
     - mode: '0644'
@@ -229,21 +230,23 @@ purge_orphan_garage_files_{{ name }}:
     directories garage left in it. #}
 {% if render.retcode == 0 and rendered.acls.revoke %}
 {% for path in rendered.acls.revoke %}
+{%- set revoke -%}
+if [ -f {{ (path ~ 'garage-marker') | quote }} ] &&
+  [ -z "$(find {{ path | quote }} -type f ! -name garage-marker -print -quit)" ]; then
+  find {{ path | quote }} -mindepth 1 -maxdepth 2 -type d -name '[0-9a-f][0-9a-f]' -empty -delete &&
+    rm {{ (path ~ 'garage-marker') | quote }}
+fi && setfacl -x u:garage {{ path | quote }}
+{%- endset %}
 revoke_garage_acl_{{ loop.index }}:
   cmd.run:
-    - name: |
-        if [ -f {{ (path ~ 'garage-marker') | quote }} ] &&
-          [ -z "$(find {{ path | quote }} -type f ! -name garage-marker -print -quit)" ]; then
-          find {{ path | quote }} -mindepth 1 -maxdepth 2 -type d -name '[0-9a-f][0-9a-f]' -empty -delete &&
-            rm {{ (path ~ 'garage-marker') | quote }}
-        fi && setfacl -x u:garage {{ path | quote }}
-    - onlyif: {{ ('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") | json }}
+    - name: {{ literal(revoke) }}
+    - onlyif: {{ literal('getfacl -p ' ~ path | quote ~ " | grep -q '^user:garage:'") }}
 {% endfor %}
 
 forget_garage_acls:
   file.managed:
     - name: {{ rendered.acls.record }}
-    - contents: {{ rendered.acls.kept | json | json }}
+    - contents: {{ literal(literal(rendered.acls.kept)) }}
     - require:
 {%- for path in rendered.acls.revoke %}
       - cmd: revoke_garage_acl_{{ loop.index }}

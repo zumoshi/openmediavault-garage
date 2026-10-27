@@ -1,17 +1,18 @@
 {{ pillar['headers']['multiline'] -}}
+{%- from 'omv/deploy/garage/literal.jinja' import literal -%}
 # Managed by openmediavault-garage. Do not edit.
 
 {# The blank lines keep earlier configs byte-identical: a changed file restarts garage. #}
 
-metadata_dir = {{ model.metadata_dir | json }}
+metadata_dir = {{ literal(model.metadata_dir) }}
 
 
-db_engine = {{ instance.dbengine | json }}
+db_engine = {{ literal(instance.dbengine) }}
 {% if model.snapshots_dir %}
-metadata_snapshots_dir = {{ model.snapshots_dir | json }}
+metadata_snapshots_dir = {{ literal(model.snapshots_dir) }}
 {% endif %}
 {% if instance.snapshotinterval | length > 0 %}
-metadata_auto_snapshot_interval = {{ instance.snapshotinterval | json }}
+metadata_auto_snapshot_interval = {{ literal(instance.snapshotinterval) }}
 {% endif %}
 metadata_fsync = {{ 'true' if instance.metadatafsync | to_bool else 'false' }}
 data_fsync = {{ 'true' if instance.datafsync | to_bool else 'false' }}
@@ -19,15 +20,15 @@ disable_scrub = {{ 'true' if instance.disablescrub | to_bool else 'false' }}
 
 replication_factor = 1
 
-rpc_bind_addr = {{ ('127.0.0.1:' ~ model.ports.rpc) | json }}
-rpc_secret_file = {{ ('/etc/garage/' ~ instance.name ~ '.rpc_secret') | json }}
+rpc_bind_addr = {{ literal('127.0.0.1:' ~ model.ports.rpc) }}
+rpc_secret_file = {{ literal('/etc/garage/' ~ instance.name ~ '.rpc_secret') }}
 
 compression_level = {% if instance.compressiondisable %}"none"{% else %}{{ instance.compressionlevel }}{% endif %}
 {% if instance.blocksize | length > 0 %}
-block_size = {{ instance.blocksize | json }}
+block_size = {{ literal(instance.blocksize) }}
 {% endif %}
 {% if instance.blockrambuffermax | length > 0 %}
-block_ram_buffer_max = {{ instance.blockrambuffermax | json }}
+block_ram_buffer_max = {{ literal(instance.blockrambuffermax) }}
 {% endif %}
 {% if instance.blockmaxconcurrentreads %}
 block_max_concurrent_reads = {{ instance.blockmaxconcurrentreads }}
@@ -36,33 +37,33 @@ block_max_concurrent_reads = {{ instance.blockmaxconcurrentreads }}
 block_max_concurrent_writes_per_request = {{ instance.blockmaxconcurrentwrites }}
 {% endif %}
 {% if instance.lmdbmapsize | length > 0 %}
-lmdb_map_size = {{ instance.lmdbmapsize | json }}
+lmdb_map_size = {{ literal(instance.lmdbmapsize) }}
 {% endif %}
 
 {%- if model.data_dir is string %}
-data_dir = {{ model.data_dir | json }}
+data_dir = {{ literal(model.data_dir) }}
 {%- else %}
 data_dir = [
 {%- for dir in model.data_dir %}
-  { path = {{ dir.path | json }}, {% if 'read_only' in dir %}read_only = true{% else %}capacity = {{ dir.capacity | json }}{% endif %} }{{ "," if not loop.last else "" }}
+  { path = {{ literal(dir.path) }}, {% if 'read_only' in dir %}read_only = true{% else %}capacity = {{ literal(dir.capacity) }}{% endif %} }{{ "," if not loop.last else "" }}
 {%- endfor %}
 ]
 {%- endif %}
 
 [s3_api]
-s3_region = {{ instance.s3region | json }}
-api_bind_addr = {{ ('[::]:' ~ model.ports.s3) | json }}
+s3_region = {{ literal(instance.s3region) }}
+api_bind_addr = {{ literal('[::]:' ~ model.ports.s3) }}
 {% if instance.s3rootdomain | length > 0 %}
-root_domain = {{ instance.s3rootdomain | json }}
+root_domain = {{ literal(instance.s3rootdomain) }}
 {% endif %}
 
 [admin]
-api_bind_addr = {{ ('127.0.0.1:' ~ model.ports.admin) | json }}
-admin_token = {{ instance.admintoken | json }}
+api_bind_addr = {{ literal('127.0.0.1:' ~ model.ports.admin) }}
+admin_token = {{ literal(instance.admintoken) }}
 {% if model.ports.web %}
 [s3_web]
-bind_addr = {{ ('[::]:' ~ model.ports.web) | json }}
+bind_addr = {{ literal('[::]:' ~ model.ports.web) }}
 {% if instance.webrootdomain | length > 0 %}
-root_domain = {{ instance.webrootdomain | json }}
+root_domain = {{ literal(instance.webrootdomain) }}
 {% endif %}
 {% endif %}

@@ -226,7 +226,6 @@ def test_share_path_with_space(ssh, shares, make_instance, s3_setup):
                   conn["bucket"], b"share path with a space works")
 
 
-@pytest.mark.xfail(strict=True, reason="raw DEL and C1 break the SLS and the toml")
 def test_share_path_with_control_characters(ssh, shares, make_instance,
                                             s3_setup):
     """DEL and the C1 controls are the control characters a shared folder
