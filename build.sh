@@ -15,6 +15,14 @@ WEBUI_URL="https://github.com/khairul169/garage-webui/releases/download/${WEBUI_
 
 download_webui() {
 	mkdir -p tree/usr/share/openmediavault/garage/bin
+	_sumfile="checksums/webui-${WEBUI_VERSION}.amd64.sha256"
+	if [ -f tree/usr/share/openmediavault/garage/bin/garage-webui ] && [ -f "$_sumfile" ]; then
+		_actual=$(sha256sum tree/usr/share/openmediavault/garage/bin/garage-webui | awk '{print $1}')
+		if [ "$_actual" = "$(cat "$_sumfile")" ]; then
+			echo "garage-webui already matches ${_sumfile}"
+			return
+		fi
+	fi
 	echo "downloading ${WEBUI_URL}"
 	curl -fsSL -o tree/usr/share/openmediavault/garage/bin/garage-webui "$WEBUI_URL"
 	chmod 0755 tree/usr/share/openmediavault/garage/bin/garage-webui
