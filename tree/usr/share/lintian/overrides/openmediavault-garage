@@ -1,2 +1,23 @@
 # Built for omv-extras, not uploaded to Debian, so there is no ITP bug.
 openmediavault-garage: initial-upload-closes-no-bugs [usr/share/doc/openmediavault-garage/changelog.Debian.gz:1]
+# Upstream's garage-webui release binary is shipped byte-identical and pinned
+# by checksum. Stripping it or rebuilding it with hardening flags would break
+# the pin.
+openmediavault-garage: unstripped-binary-or-object [usr/libexec/openmediavault-garage/garage-webui]
+openmediavault-garage: hardening-no-pie [usr/libexec/openmediavault-garage/garage-webui]
+openmediavault-garage: hardening-no-relro [usr/libexec/openmediavault-garage/garage-webui]
+openmediavault-garage: hardening-no-bindnow [usr/libexec/openmediavault-garage/garage-webui]
+# OMV deploys every module from its Salt tree in /srv/salt, which the
+# openmediavault package ships. A plugin's states must live there.
+openmediavault-garage: dir-or-file-in-srv [srv/salt/*]
+# OMV serves its web interface from /var/www/openmediavault, which the
+# openmediavault package ships. The web UI sign-in page must be under it.
+openmediavault-garage: dir-or-file-in-var-www [var/www/openmediavault/*]
+# That sign-in page is served HTML, not documentation.
+openmediavault-garage: package-contains-documentation-outside-usr-share-doc [var/www/openmediavault/garage-sso/index.html]
+# OMV's plugin list (omv-mkaptidx) files plugins by this field.
+openmediavault-garage: unknown-field Plugin-Section
+# Salt creates and enables the garage@<name> and omv-garage-webui@<name>
+# instances at run time. They are not shipped units, so deb-systemd-helper
+# does not know them, and remove has to disable them itself.
+openmediavault-garage: maintainer-script-calls-systemctl [postrm:*]

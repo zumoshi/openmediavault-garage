@@ -122,14 +122,25 @@ Needs `nfpm` and `curl`. The vendored webui binary is checksum-pinned in
 
 ```sh
 make unit           # PHPUnit in php:8.4-cli (Docker)
-make package-test   # builds dist/ if needed, then checks the deb
+make lint           # builds dist/ if needed, then trixie's lintian (Docker)
+make package-test   # make lint, then checks the deb
 make e2e            # Playwright suite against a real OMV host
+tests/lifecycle.sh root@omv-test.lan dist/openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
-`make unit` and `make package-test` need no VM. `make e2e` reads
+`make unit`, `make lint` and `make package-test` need no VM. Each lintian
+override in `tree/usr/share/lintian/overrides/` carries its reason. `make e2e` reads
 `OMV_HOST`, `OMV_SSH`, `OMV_ADMIN_PASSWORD` and `OMV_DISK` from the
 environment; see `tests/e2e/README.md`. Pass extra test-runner arguments
 with `ARGS`, for example `make package-test ARGS=--runxfail`.
+
+`tests/lifecycle.sh` installs the deb on an OMV host over ssh, upgrades
+it to a repacked higher version, removes it, reinstalls it and purges it,
+checking the engine restarts, the instances, files, confdb, ACLs and the
+workbench after each step. Purge forgets every instance in confdb, so it
+refuses to run while the host has instances other than its own throwaway
+`gt<hex>` ones unless you pass `--force`. Instance data is never deleted.
+The host keeps the tested deb installed.
 
 ## Layout
 
@@ -153,7 +164,8 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
 - `tree/var/www/openmediavault/garage-sso/` - one-click web UI sign-in page,
   and `auth.php`, the nginx `auth_request` check that lets only OMV admin
   sessions through to the web UI
-- `tree/usr/lib/systemd/system/omv-garage-webui@.service` - web UI template
+- `tree/usr/lib/systemd/system/omv-garage-webui@.service` - web UI template,
+  running the vendored `/usr/libexec/openmediavault-garage/garage-webui`
 - `debian/changelog` - package version and history, shipped as
   `changelog.Debian.gz`
 

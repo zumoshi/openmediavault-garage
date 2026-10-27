@@ -6,6 +6,7 @@ section: net
 priority: optional
 maintainer: bor <me@bor691.ir>
 description: |
+  openmediavault plugin for Garage S3-compatible object storage
   OpenMediaVault plugin for Garage, the S3-compatible self-hosted object
   storage. Manages multiple native Garage instances (no containers): each
   instance gets its own datastores (shared folders), buckets, access keys
@@ -16,8 +17,7 @@ vendor: openmediavault-garage
 
 deb:
   fields:
-    XB-Plugin-Section: network
-    XB-Plugin-Architecture: amd64
+    Plugin-Section: network
   triggers:
     activate_await:
       - restart-engined
@@ -26,8 +26,12 @@ depends:
   - openmediavault (>= 8.0)
   - garage
   - acl
+  - php-cli
+  - libc6 (>= 2.34)
 
 contents:
+  - src: tree/usr/libexec/openmediavault-garage/garage-webui
+    dst: /usr/libexec/openmediavault-garage/garage-webui
   - src: tree/usr/lib/systemd/system/omv-garage-webui@.service
     dst: /usr/lib/systemd/system/omv-garage-webui@.service
   - src: tree/usr/share/openmediavault/

@@ -14,24 +14,24 @@ WEBUI_VERSION=${WEBUI_VERSION:-1.1.0}
 WEBUI_URL="https://github.com/khairul169/garage-webui/releases/download/${WEBUI_VERSION}/garage-webui-v${WEBUI_VERSION}-linux-amd64"
 
 download_webui() {
-	mkdir -p tree/usr/share/openmediavault/garage/bin
+	mkdir -p tree/usr/libexec/openmediavault-garage
 	_sumfile="checksums/webui-${WEBUI_VERSION}.amd64.sha256"
-	if [ -f tree/usr/share/openmediavault/garage/bin/garage-webui ] && [ -f "$_sumfile" ]; then
-		_actual=$(sha256sum tree/usr/share/openmediavault/garage/bin/garage-webui | awk '{print $1}')
+	if [ -f tree/usr/libexec/openmediavault-garage/garage-webui ] && [ -f "$_sumfile" ]; then
+		_actual=$(sha256sum tree/usr/libexec/openmediavault-garage/garage-webui | awk '{print $1}')
 		if [ "$_actual" = "$(cat "$_sumfile")" ]; then
 			echo "garage-webui already matches ${_sumfile}"
 			return
 		fi
 	fi
 	echo "downloading ${WEBUI_URL}"
-	curl -fsSL -o tree/usr/share/openmediavault/garage/bin/garage-webui "$WEBUI_URL"
-	chmod 0755 tree/usr/share/openmediavault/garage/bin/garage-webui
+	curl -fsSL -o tree/usr/libexec/openmediavault-garage/garage-webui "$WEBUI_URL"
+	chmod 0755 tree/usr/libexec/openmediavault-garage/garage-webui
 }
 
 case "${1:-build}" in
 record)
 	download_webui
-	sha256sum tree/usr/share/openmediavault/garage/bin/garage-webui \
+	sha256sum tree/usr/libexec/openmediavault-garage/garage-webui \
 		| awk '{print $1}' > "checksums/webui-${WEBUI_VERSION}.amd64.sha256"
 	echo "pinned checksums/webui-${WEBUI_VERSION}.amd64.sha256"
 	;;
@@ -50,7 +50,7 @@ build)
 		exit 1
 	}
 	expected=$(cat "$sumfile")
-	actual=$(sha256sum tree/usr/share/openmediavault/garage/bin/garage-webui | awk '{print $1}')
+	actual=$(sha256sum tree/usr/libexec/openmediavault-garage/garage-webui | awk '{print $1}')
 	[ "$actual" = "$expected" ] || {
 		echo "webui checksum mismatch" >&2
 		exit 1

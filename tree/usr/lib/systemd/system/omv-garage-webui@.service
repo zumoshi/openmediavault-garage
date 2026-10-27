@@ -1,7 +1,7 @@
 [Unit]
 Description=Garage web UI for instance %i
 Documentation=https://github.com/khairul169/garage-webui
-ConditionPathExists=/usr/share/openmediavault/garage/bin/garage-webui
+ConditionPathExists=/usr/libexec/openmediavault-garage/garage-webui
 ConditionPathExists=/etc/garage/%i.webui.env
 BindsTo=garage@%i.service
 After=garage@%i.service
@@ -12,7 +12,7 @@ Type=simple
 User=garage
 Group=garage
 EnvironmentFile=/etc/garage/%i.webui.env
-ExecStart=/usr/share/openmediavault/garage/bin/garage-webui
+ExecStart=/usr/libexec/openmediavault-garage/garage-webui
 Restart=on-failure
 RestartSec=5s
 UMask=0027

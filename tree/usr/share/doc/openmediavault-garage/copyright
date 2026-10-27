@@ -6,7 +6,7 @@ Files: *
 Copyright: 2026 bor <me@bor691.ir>
 License: GPL-3
 
-Files: usr/share/openmediavault/garage/bin/garage-webui
+Files: usr/libexec/openmediavault-garage/garage-webui
 Copyright: 2024 Khairul Hidayat
 License: Expat
 Comment: Upstream's release binary from
