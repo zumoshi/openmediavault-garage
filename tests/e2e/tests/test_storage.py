@@ -92,10 +92,17 @@ def _rebalances(ssh, name: str) -> list[dict]:
             if w["name"] == "Block rebalance worker"]
 
 
-def test_datastore_drain_resumes_after_a_garage_restart(
-        ssh, rpc, shares, make_instance, s3_setup):
-    """The rebalance that drains a datastore lives in garage's memory. A
-    restart that is not an apply, like a reboot, must start it again."""
+@pytest.mark.parametrize("resume", [
+    "restart",
+    pytest.param("apply", marks=pytest.mark.xfail(
+        strict=True, reason="an apply does not relaunch the rebalance")),
+])
+def test_datastore_drain_resumes(resume, ssh, rpc, shares, make_instance,
+                                 s3_setup):
+    """The rebalance that drains a datastore lives in garage's memory, and
+    one that hits write errors ends with blocks left. A restart that is not
+    an apply, like a reboot, must start it again, and so must an apply
+    that leaves garage running."""
     name, info = make_instance(extra_datastore=True)
     conn = s3_setup(name, info["uuid"])
     client = s3.client(conn["endpoint"], conn["key_id"], conn["secret"])
@@ -130,8 +137,14 @@ def test_datastore_drain_resumes_after_a_garage_restart(
     finally:
         ssh.out(f"find {data_dir} -mindepth 1 -type d -exec chmod u+w {{}} +")
 
-    ssh.out(f"systemctl restart {unit}")
-    ssh.wait_unit_running(unit)
+    if resume == "restart":
+        ssh.out(f"systemctl restart {unit}")
+        ssh.wait_unit_running(unit)
+    else:
+        pid = ssh.unit_state(unit)["MainPID"]
+        rpc.apply(["garage"])
+        assert ssh.unit_state(unit)["MainPID"] == pid, \
+            f"the apply restarted {unit}"
     deadline = time.time() + 180
     while True:
         try:
@@ -139,7 +152,7 @@ def test_datastore_drain_resumes_after_a_garage_restart(
             break
         except RpcError as e:
             assert time.time() < deadline, (
-                f"datastore not removable 180s after the restart: {e}; "
+                f"datastore not removable 180s after the {resume}: {e}; "
                 f"{_block_files(ssh, ds_path)} block files left")
             time.sleep(5)
     rpc.apply(["garage"])
