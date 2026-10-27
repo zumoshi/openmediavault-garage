@@ -18,6 +18,9 @@ deb:
   fields:
     XB-Plugin-Section: network
     XB-Plugin-Architecture: amd64
+  triggers:
+    activate_await:
+      - restart-engined
 
 depends:
   - openmediavault (>= 8.0)

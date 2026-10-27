@@ -1,4 +1,4 @@
-#!/usr/bin/env dash
+#!/bin/sh
 #
 # This file is part of the openmediavault-garage plugin.
 #

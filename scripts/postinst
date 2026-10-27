@@ -1,4 +1,4 @@
-#!/usr/bin/env dash
+#!/bin/sh
 #
 # This file is part of the openmediavault-garage plugin.
 #
@@ -13,8 +13,6 @@ case "$1" in
 	configure)
 		####################################################################
 		# Activate trigger to rebuild workbench configuration files.
-		# nfpm does not support dpkg triggers files; activating the trigger
-		# from the postinst is the documented equivalent.
 		####################################################################
 		dpkg-trigger update-workbench
 
@@ -35,15 +33,16 @@ case "$1" in
 		omv_module_set_dirty garage
 
 		####################################################################
-		# Reload the engine so the new RPC service is registered. This is
-		# the equivalent of the 'activate restart-engined' dpkg trigger,
-		# which nfpm cannot declare. Activate the trigger for apt runs as
-		# well; dpkg processes it at the end of the transaction.
+		# Load the changed unit and run the new web UI binary. try-restart
+		# leaves stopped web UIs stopped. The engine is restarted by the
+		# restart-engined trigger the package declares.
 		####################################################################
 		if [ -d /run/systemd/system ]; then
-			systemctl -q restart openmediavault-engined || true
+			systemctl --system daemon-reload >/dev/null || true
+			if [ -n "$2" ]; then
+				deb-systemd-invoke try-restart 'omv-garage-webui@*.service' >/dev/null || true
+			fi
 		fi
-		dpkg-trigger restart-engined || true
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
