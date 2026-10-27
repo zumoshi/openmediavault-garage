@@ -164,7 +164,6 @@ def test_region_with_double_quote_rejected(page, cfg, rpc, make_instance):
         is not None, f"setInstance accepted s3region {region}"
 
 
-@pytest.mark.xfail(strict=True, reason="trailing newline passes PHP's $")
 def test_trailing_newline_rejected_in_every_patterned_field(page, cfg, rpc,
                                                             make_instance):
     name, info = make_instance()
@@ -179,7 +178,7 @@ def test_trailing_newline_rejected_in_every_patterned_field(page, cfg, rpc,
         assert _set_instance_error(rpc, {**params, field: value}) is None, \
             f"setInstance rejected {field} {value!r} without a newline"
         error = _set_instance_error(rpc, {**params, field: value + "\n"})
-        if error is None or "doesn't match the pattern" not in error:
+        if error is None or f"{field}: " not in error:
             accepted[field] = error
     assert not accepted, \
-        f"setInstance did not reject a trailing newline by pattern: {accepted}"
+        f"setInstance did not reject a trailing newline in the field: {accepted}"
