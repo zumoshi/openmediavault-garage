@@ -61,12 +61,14 @@ Removing a datastore takes two deletes. After the first delete and an
 apply, the datastore is read-only and Garage moves its blocks to the other
 data folders. Objects stay readable meanwhile. The **Status** column of the
 **Datastores** tab shows how many block files are left (counted up to
-10000). Garage keeps this move in memory only, so `garage@<name>` starts it
-again after every start, including a reboot. Once the status says the
-datastore is empty, delete it again and apply. That apply drops the folder
-from the instance, removes the empty directories and the marker Garage
-left in it, and revokes the folder's ACL. The last datastore of an
-enabled instance with a separate metadata folder cannot be removed.
+10000). Garage keeps this move in memory only, and ends it with blocks
+left when it cannot write them. So `garage@<name>` starts it again after
+every start, including a reboot, and every apply starts it again unless
+one is running. Once the status says the datastore is empty, delete it
+again and apply. That apply drops the folder from the instance, removes
+the empty directories and the marker Garage left in it, and revokes the
+folder's ACL. The last datastore of an enabled instance with a separate
+metadata folder cannot be removed.
 
 Deleting an instance only removes it from the configuration. The apply
 stops its units, removes its files and revokes its folders' ACLs, so
@@ -145,6 +147,7 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
   owns: tomls with its marker line and the ACLs it recorded
 - `tree/usr/share/openmediavault/garage/lib/drain.php` - when a draining
   datastore is empty; `start-rebalance.sh` restarts the move after a start
+  and on every apply
 - `tree/usr/share/openmediavault/garage/bootstrap-instance.php` - idempotent
   single-node layout bootstrap (wait, assign, apply, converge capacity)
 - `tree/var/www/openmediavault/garage-sso/` - one-click web UI sign-in page,

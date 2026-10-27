@@ -135,6 +135,14 @@ bootstrap_garage_{{ name }}:
     - require:
       - service: start_garage_{{ name }}
 
+{% if model.drain %}
+rebalance_garage_{{ name }}:
+  cmd.run:
+    - name: {{ literal(['/usr/share/openmediavault/garage/start-rebalance.sh', name] | map('quote') | join(' ')) }}
+    - require:
+      - service: start_garage_{{ name }}
+{% endif %}
+
 {% if instance.webuienable %}
 {%- set webuienv = etcdir ~ '/' ~ name ~ '.webui.env' %}
 

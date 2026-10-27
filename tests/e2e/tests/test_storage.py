@@ -92,11 +92,7 @@ def _rebalances(ssh, name: str) -> list[dict]:
             if w["name"] == "Block rebalance worker"]
 
 
-@pytest.mark.parametrize("resume", [
-    "restart",
-    pytest.param("apply", marks=pytest.mark.xfail(
-        strict=True, reason="an apply does not relaunch the rebalance")),
-])
+@pytest.mark.parametrize("resume", ["restart", "apply"])
 def test_datastore_drain_resumes(resume, ssh, rpc, shares, make_instance,
                                  s3_setup):
     """The rebalance that drains a datastore lives in garage's memory, and
