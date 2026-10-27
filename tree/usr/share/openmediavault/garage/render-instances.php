@@ -3,7 +3,7 @@
 /**
  * Print the render model of every Garage instance as JSON, everything the
  * deployment writes for it, the instances the plugin rendered that are no
- * longer configured, and the shared folders it holds a garage ACL on:
+ * longer enabled, and the shared folders it holds a garage ACL on:
  * {"instances": {"<name>": {"model": {...}} or {"error": "..."}},
  *  "orphans": ["<name>", ...],
  *  "acls": {"record": "<path>", "granted": [...], "revoke": [...], "kept": [...]}}
@@ -63,6 +63,7 @@ try {
 	\OMV\DataModel\Manager::getInstance()->load();
 	$db = \OMV\Config\Database::getInstance();
 	$instances = [];
+	$enabled = [];
 	$models = [];
 	foreach ($db->get("conf.service.garage.instance") as $instance) {
 		try {
@@ -74,6 +75,9 @@ try {
 				"garage@" . $instance->get("name") . ": " . $e->getMessage()];
 		}
 		$models[] = $model;
+		if ($instance->get("enable")) {
+			$enabled[] = $instance->get("name");
+		}
 	}
 	$tomls = [];
 	foreach (glob(ETC . "/*.toml") as $toml) {
@@ -82,7 +86,7 @@ try {
 	$recorded = file_exists(ACL_RECORD) ? json_decode(
 		file_get_contents(ACL_RECORD), true, 2, JSON_THROW_ON_ERROR) : [];
 	echo json_encode(["instances" => (object)$instances,
-		"orphans" => orphans($tomls, array_keys($instances)),
+		"orphans" => orphans($tomls, $enabled),
 		"acls" => ["record" => ACL_RECORD] + aclGrants($recorded, $models)],
 		JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 } catch (\Throwable $e) {

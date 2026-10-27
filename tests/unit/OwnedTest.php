@@ -20,7 +20,7 @@ final class OwnedTest extends TestCase
         return ["shares" => $shares];
     }
 
-    public function testOrphansAreRenderedTomlsOfUnconfiguredInstances(): void
+    public function testOrphansAreRenderedTomlsOfInstancesNotEnabled(): void
     {
         self::assertSame(["gone"], orphans([
             "alpha" => self::RENDERED,

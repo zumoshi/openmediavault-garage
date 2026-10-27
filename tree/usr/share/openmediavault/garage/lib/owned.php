@@ -13,11 +13,12 @@ namespace OMV\Garage;
 const MARKER = "# Managed by openmediavault-garage.";
 
 /**
- * The instances the plugin rendered that are no longer configured. A toml
- * without the marker line belongs to the admin, not to the plugin.
+ * The instances the plugin rendered that must no longer run: deleted or
+ * disabled. A toml without the marker line belongs to the admin, not to
+ * the plugin.
  *
  * @param array<string, string> $tomls Each toml's contents by instance name.
- * @param list<string> $names The configured instances.
+ * @param list<string> $names The enabled instances.
  * @return list<string>
  */
 function orphans(array $tomls, array $names): array

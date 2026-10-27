@@ -71,6 +71,9 @@ enabled instance with a separate metadata folder cannot be removed.
 Deleting an instance only removes it from the configuration. The apply
 stops its units, removes its files and revokes its folders' ACLs, so
 undoing the pending change instead leaves the instance running as it was.
+Disabling an instance does the same on apply, except that its folders keep
+their data and their ACLs. Enabling it again renders its files from the
+configuration, and it starts with its buckets, keys and objects.
 
 The plugin only touches what it rendered. Every toml it writes carries
 the line `# Managed by openmediavault-garage.`, and an apply or a package
@@ -136,7 +139,8 @@ with `ARGS`, for example `make package-test ARGS=--runxfail`.
 - `tree/usr/share/openmediavault/garage/lib/render.php` - the render model:
   every path, data folder, port, ACL and the layout capacity of an
   instance; `render-instances.php` prints it for every instance as JSON for
-  the salt state, with the deleted instances and the ACLs to revoke
+  the salt state, with the deleted or disabled instances and the ACLs to
+  revoke
 - `tree/usr/share/openmediavault/garage/lib/owned.php` - what the plugin
   owns: tomls with its marker line and the ACLs it recorded
 - `tree/usr/share/openmediavault/garage/lib/drain.php` - when a draining

@@ -197,8 +197,9 @@ purge_garage_webui_env_{{ name }}:
 
 {% endfor %}
 
-{#- Clean up the instances the plugin rendered that were deleted from the
-    configuration. The toml goes last: it marks the files as the plugin's. #}
+{#- Stop and clean up the instances the plugin rendered that were deleted
+    or disabled. Their data and garage ACLs stay. The toml goes last: it
+    marks the files as the plugin's. #}
 {% for name in rendered.orphans %}
 purge_orphan_garage_service_{{ name }}:
   service.dead:

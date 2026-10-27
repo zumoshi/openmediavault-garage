@@ -153,7 +153,6 @@ def test_disabled_instance(page, cfg, ssh, make_instance):
     assert not ssh.file_exists(f"/etc/garage/{name}.rpc_secret")
 
 
-@pytest.mark.xfail(strict=True, reason="REVIEW 2.11")
 def test_disabling_stops_instance_and_reenabling_keeps_data(
         page, cfg, ssh, rpc, shares, make_instance, s3_setup):
     name, info = make_instance(webui=True)
