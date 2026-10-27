@@ -226,6 +226,24 @@ def test_share_path_with_space(ssh, shares, make_instance, s3_setup):
                   conn["bucket"], b"share path with a space works")
 
 
+@pytest.mark.xfail(strict=True, reason="raw DEL and C1 break the SLS and the toml")
+def test_share_path_with_control_characters(ssh, shares, make_instance,
+                                            s3_setup):
+    """DEL and the C1 controls are the control characters a shared folder
+    path can hold: OMV writes the others into config.xml, which then no
+    longer parses."""
+    share = f"gt{secrets.token_hex(3)}"
+    shares.create(share, reldirpath=f"{share} del\x7f nel\x85 csi\x9b/")
+    name, info = make_instance(storage_share=share)
+    toml = instance.read_instance_toml(ssh, name)
+    assert toml["metadata_dir"] == f"{shares.path(share)}/meta", \
+        toml["metadata_dir"]
+
+    conn = s3_setup(name, info["uuid"])
+    s3.round_trip(conn["endpoint"], conn["key_id"], conn["secret"],
+                  conn["bucket"], b"share path with control characters works")
+
+
 def test_undo_delete_keeps_instance_running(page, cfg, ssh, make_instance):
     name, info = make_instance()
     pid = ssh.unit_state(f"garage@{name}")["MainPID"]
