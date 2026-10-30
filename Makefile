@@ -1,6 +1,9 @@
 PHP_IMAGE := php:8.4.27-cli@sha256:debadc2e36b857657846e2e952cbaf52702e55482dd3c2c43806f68d8c534a70
 COMPOSER_IMAGE := composer:2.10.3@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc
 DEBIAN_IMAGE := debian:trixie@sha256:4c25275446ca371766b8b093c696782eabce06263fccacb8d5d813b3dc44b308
+NFPM_VERSION := 2.48.0
+NFPM_TARBALL := .tools/nfpm_$(NFPM_VERSION)_Linux_x86_64.tar.gz
+NFPM := .tools/nfpm-$(NFPM_VERSION)/nfpm
 DOCKER_RUN := docker run --rm -u $(shell id -u):$(shell id -g) -v $(CURDIR):/app -w /app
 
 .PHONY: unit lint package-test e2e
@@ -21,9 +24,20 @@ lint: dist/.built
 package-test: lint
 	cd tests/package && uv run pytest $(ARGS)
 
-dist/.built: build.sh nfpm.yaml debian/changelog $(wildcard $(shell git ls-files --cached --others --exclude-standard tree scripts checksums))
+dist/.built: build.sh nfpm.yaml debian/changelog $(wildcard $(shell git ls-files --cached --others --exclude-standard tree scripts checksums)) | $(NFPM)
 	rm -rf dist
-	./build.sh
+	NFPM=$(CURDIR)/$(NFPM) ./build.sh
+	touch $@
+
+$(NFPM_TARBALL):
+	mkdir -p $(@D)
+	curl -fsSL -o $@.part https://github.com/goreleaser/nfpm/releases/download/v$(NFPM_VERSION)/$(@F)
+	mv $@.part $@
+
+$(NFPM): $(NFPM_TARBALL) checksums/$(notdir $(NFPM_TARBALL)).sha256
+	echo "$$(cat checksums/$(notdir $(NFPM_TARBALL)).sha256)  $<" | sha256sum -c - || { rm -f $<; exit 1; }
+	mkdir -p $(@D)
+	tar -xzf $< -C $(@D) nfpm
 	touch $@
 
 e2e:

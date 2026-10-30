@@ -111,12 +111,16 @@ by hand next to them, as the garage README describes, is left alone.
 ## Build
 
 ```sh
-./build.sh    # dist/openmediavault-garage_0.1.0-1_amd64.deb
+make dist/.built    # dist/openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
-The package version comes from the top entry of `debian/changelog`.
-Needs `nfpm` and `curl`. The vendored webui binary is checksum-pinned in
-`checksums/` and verified at build time; CI enforces it.
+The package version comes from the top entry of `debian/changelog`. The
+build downloads nfpm from its pinned GitHub release into `.tools/` and
+checks it against `checksums/nfpm_*.sha256`; to move to a new nfpm, change
+`NFPM_VERSION` in the `Makefile` and commit the sha256 of the new
+`Linux_x86_64` tarball from the release's `checksums.txt`. The vendored
+webui binary is checksum-pinned in `checksums/` and verified at build time.
+`./build.sh` alone uses `nfpm` from `PATH`, or `$NFPM`.
 
 ## Test
 
