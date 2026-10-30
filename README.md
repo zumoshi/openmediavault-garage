@@ -127,7 +127,7 @@ webui binary is checksum-pinned in `checksums/` and verified at build time.
 ```sh
 make unit           # PHPUnit in php:8.4-cli (Docker)
 make lint           # builds dist/ if needed, then trixie's lintian (Docker)
-make package-test   # make lint, then checks the deb
+make package-test   # make lint, then pytest checks on the deb (Docker)
 make e2e            # Playwright suite against a real OMV host
 tests/lifecycle.sh root@omv-test.lan dist/openmediavault-garage_0.1.0-1_amd64.deb
 ```
