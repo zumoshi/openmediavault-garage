@@ -91,7 +91,7 @@ export OMV_DISK=loop                 # substring of the devicefile
 uv run pytest -q
 ```
 
-A full run takes about 29 minutes.
+A full run takes about an hour.
 
 `OMV_DISK` is matched as a substring against the device files of mounted
 filesystems (e.g. `sda` matches `/dev/sda1`, `loop` matches `/dev/loop0`).

@@ -87,7 +87,8 @@ by hand next to them, as the garage README describes, is left alone.
 - Garage and the web UI run as the system user `garage` (no shell), with
   `ProtectSystem=strict`, `NoNewPrivileges`, system-call filtering, and
   per-instance `ReadWritePaths` limited to the chosen shared folders.
-- Configs and secrets live in `/etc/garage/` (0600/0640, `root:garage`).
+- `/etc/garage/` is 0750 `root:garage`. Configs are 0640 `root:garage`,
+  secret files 0600 owned by `garage`.
 - The user `garage` gets an ACL entry on each shared folder an instance
   uses. It is `rwx` where Garage writes into the folder itself (a
   datastore, or metadata or snapshots at the folder's root), and `--x` where
@@ -191,6 +192,10 @@ The key in `keys/` is a test key; see `keys/README.md`.
   instance; `render-instances.php` prints it for every instance as JSON for
   the salt state, with the deleted or disabled instances and the ACLs to
   revoke
+- `tree/usr/share/openmediavault/garage/lib/live.php` - maps garage's admin
+  API responses to the workbench's bucket, key and permission rows
+- `tree/usr/share/openmediavault/garage/lib/ports.php` - port conflicts,
+  shared by create and edit
 - `tree/usr/share/openmediavault/garage/lib/owned.php` - what the plugin
   owns: tomls with its marker line and the ACLs it recorded
 - `tree/usr/share/openmediavault/garage/lib/drain.php` - when a draining
@@ -205,6 +210,8 @@ The key in `keys/` is a test key; see `keys/README.md`.
   running the vendored `/usr/libexec/openmediavault-garage/garage-webui`
 - `debian/changelog` - package version and history, shipped as
   `changelog.Debian.gz`
+- `tests/unit/` (PHPUnit), `tests/package/` (pytest on the built deb),
+  `tests/e2e/` (Playwright against an OMV host), `tests/lifecycle.sh`
 
 ## License
 
