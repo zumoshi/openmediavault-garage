@@ -1,12 +1,23 @@
 PHP_IMAGE := php:8.4.27-cli@sha256:debadc2e36b857657846e2e952cbaf52702e55482dd3c2c43806f68d8c534a70
 COMPOSER_IMAGE := composer:2.10.3@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc
 TOOLS_IMAGE := openmediavault-garage-tools
+ACTIONLINT_IMAGE := rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 NFPM_VERSION := 2.48.0
 NFPM_TARBALL := .tools/nfpm_$(NFPM_VERSION)_Linux_x86_64.tar.gz
 NFPM := .tools/nfpm-$(NFPM_VERSION)/nfpm
 DOCKER_RUN := docker run --rm -u $(shell id -u):$(shell id -g) -v $(CURDIR):/app -w /app
+SHELL_SCRIPTS = $(shell git ls-files -z | xargs -0 awk 'FNR == 1 { if (/^#!.*\/(env )?(ba|da)?sh( |$$)/) print FILENAME; nextfile }')
+PHP_FILES = $(shell git ls-files '*.php' '*.inc')
 
-.PHONY: unit lint package-test e2e tools-image
+.PHONY: check unit lint package-test e2e tools-image
+
+check: tools-image
+	ci/check-no-private-keys.sh
+	docker run --rm -v $(CURDIR):/repo:ro -w /repo $(ACTIONLINT_IMAGE)
+	docker run --rm -v $(CURDIR):/app:ro -w /app $(TOOLS_IMAGE) shellcheck $(SHELL_SCRIPTS)
+	docker run --rm -v $(CURDIR):/app:ro -w /app $(PHP_IMAGE) \
+		sh -c 'status=0; for f; do php -l "$$f" >/dev/null || status=1; done; exit $$status' sh $(PHP_FILES)
+	docker run --rm -v $(CURDIR):/app:ro -w /app $(TOOLS_IMAGE) yamllint --strict tree/usr/share/openmediavault/workbench
 
 unit: vendor/composer/installed.json
 	$(DOCKER_RUN) $(PHP_IMAGE) vendor/bin/phpunit $(ARGS)

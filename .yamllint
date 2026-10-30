@@ -1,0 +1,6 @@
+extends: default
+rules:
+  # OMV workbench files start at `version:`, like upstream's.
+  document-start: disable
+  # Templates and expressions are single-line strings.
+  line-length: disable
