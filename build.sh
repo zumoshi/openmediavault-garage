@@ -6,6 +6,7 @@ usage() {
 Usage:
   $0                                   build the plugin deb at the debian/changelog version
   WEBUI_VERSION=1.1.0 $0 record        pin the webui checksum
+  $0 version                           print the debian/changelog version
 EOF
 	exit 2
 }
@@ -29,6 +30,9 @@ download_webui() {
 }
 
 case "${1:-build}" in
+version)
+	sed -n '1s/^openmediavault-garage (\(.*\)).*/\1/p' debian/changelog
+	;;
 record)
 	download_webui
 	sha256sum tree/usr/libexec/openmediavault-garage/garage-webui \

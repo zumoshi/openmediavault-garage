@@ -125,6 +125,7 @@ webui binary is checksum-pinned in `checksums/` and verified at build time.
 ## Test
 
 ```sh
+make check          # actionlint, shellcheck, php -l, yamllint, no private keys tracked
 make unit           # PHPUnit in php:8.4-cli (Docker)
 make lint           # builds dist/ if needed, then trixie's lintian (Docker)
 make package-test   # make lint, then pytest checks on the deb (Docker)
@@ -132,7 +133,7 @@ make e2e            # Playwright suite against a real OMV host
 tests/lifecycle.sh root@omv-test.lan dist/openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
-`make unit`, `make lint` and `make package-test` need no VM. Each lintian
+`make check`, `make unit`, `make lint` and `make package-test` need no VM. Each lintian
 override in `tree/usr/share/lintian/overrides/` carries its reason. `make e2e` reads
 `OMV_HOST`, `OMV_SSH`, `OMV_ADMIN_PASSWORD` and `OMV_DISK` from the
 environment; see `tests/e2e/README.md`. Pass extra test-runner arguments
@@ -145,6 +146,38 @@ workbench after each step. Purge forgets every instance in confdb, so it
 refuses to run while the host has instances other than its own throwaway
 `gt<hex>` ones unless you pass `--force`. Instance data is never deleted.
 The host keeps the tested deb installed.
+
+## CI
+
+`.github/workflows/build.yml` runs `make check`, `make unit` and
+`make package-test` on every push and pull request, the same commands as
+above. Each tool runs in a container pinned in one place: the PHP,
+Composer and actionlint images and nfpm in the `Makefile`; trixie's lintian,
+shellcheck, yamllint and dpkg-dev plus uv in `ci/tools.Dockerfile`. Actions
+are pinned by commit SHA. The e2e suite and `tests/lifecycle.sh` need the
+OMV VM and stay local.
+
+## Release
+
+Push a tag `v<version>-<release>` that equals the top `debian/changelog`
+entry, for example `v0.1.0-1`, or `v0.1.0-2` for a packaging-only fix. CI
+fails when the tag and the changelog disagree. After the checks pass, the
+`sign` job writes `SHA256SUMS` for the deb and a detached signature
+`SHA256SUMS.asc` with the key in the `GPG_PRIVATE_KEY` secret (passphrase
+in `GPG_PASSPHRASE`, optional), and checks it against `keys/`. The
+`publish` job attaches the deb, `SHA256SUMS` and `SHA256SUMS.asc` to the
+GitHub release. Only `sign` sees the secrets, and only `publish` can write
+to the repository. Pull requests never reach either job.
+
+Verify a download:
+
+```sh
+gpg --import keys/release-signing-test.asc
+gpg --verify SHA256SUMS.asc SHA256SUMS
+sha256sum -c SHA256SUMS
+```
+
+The key in `keys/` is a test key; see `keys/README.md`.
 
 ## Layout
 
