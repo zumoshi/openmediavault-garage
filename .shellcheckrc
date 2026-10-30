@@ -1,0 +1,2 @@
+# Maintainer scripts source OMV files that exist only on the target system.
+disable=SC1091

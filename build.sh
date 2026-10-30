@@ -57,8 +57,8 @@ build)
 	}
 	gzip -9nc debian/changelog >tree/usr/share/doc/openmediavault-garage/changelog.Debian.gz
 	mkdir -p dist
-	VERSION="$VERSION" RELEASE="$RELEASE" \
-		nfpm package -f nfpm.yaml -p deb \
+	export VERSION RELEASE
+	nfpm package -f nfpm.yaml -p deb \
 		-t "dist/openmediavault-garage_${VERSION}-${RELEASE}_amd64.deb"
 	;;
 *)

@@ -27,8 +27,8 @@ omv_config_delete "/config/services/garage/instances/instance/webuipasswordhash"
 
 xmlstarlet sel -t -m "/config/services/garage/instances/instance[string-length(storageshareuuid) != 36 and string-length(metadatashareuuid) = 36]" \
 	-v "uuid" -n \
-	${OMV_CONFIG_FILE} | xmlstarlet unesc |
-	while read uuid; do
+	"${OMV_CONFIG_FILE}" | xmlstarlet unesc |
+	while read -r uuid; do
 		row="/config/services/garage/instances/instance[uuid='${uuid}']"
 		meta=$(omv_config_get "${row}/metadatashareuuid")
 		omv_config_delete "${row}/storageshareuuid"
