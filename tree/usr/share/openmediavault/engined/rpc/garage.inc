@@ -163,6 +163,8 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				"compressionlevel" => 1,
 				"compressiondisable" => false,
 				"snapshotinterval" => "",
+				"storageshareuuid" => "",
+				"storagesplit" => false,
 				"storagecapacity" => 0,
 				"metadatashareuuid" => "",
 				"snapshotsshareuuid" => "",
