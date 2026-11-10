@@ -216,5 +216,7 @@ The key in `keys/` is a test key; see `keys/README.md`.
 ## License
 
 GPL-3, copyright bor. The vendored web UI is MIT, copyright Khairul Hidayat.
-Garage is AGPL-3, copyright Deuxfleurs and the Garage contributors. See
-`tree/usr/share/doc/openmediavault-garage/copyright`.
+Garage is AGPL-3, copyright Deuxfleurs and the Garage contributors. The full
+GPL-3 text is in `LICENSE`. See
+`tree/usr/share/doc/openmediavault-garage/copyright` for the per-file
+breakdown.
