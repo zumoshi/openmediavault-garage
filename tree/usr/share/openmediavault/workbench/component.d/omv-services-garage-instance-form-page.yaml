@@ -175,6 +175,15 @@ data:
           pattern:
             pattern: '^(\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?$'
             errorData: _("A domain name, e.g. .s3.example.com.")
+      - type: textInput
+        name: s3publicendpoint
+        label: _("Public endpoint")
+        hint: _("Optional. The public URL Garage advertises for objects, e.g. https://s3.example.com. Must include http:// or https://.")
+        value: ""
+        validators:
+          pattern:
+            pattern: '^($|https?://\S+)$'
+            errorData: _("A URL with http:// or https://, e.g. https://s3.example.com.")
       - type: divider
         title: _("Advanced")
       - type: checkbox

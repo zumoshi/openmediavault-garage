@@ -30,6 +30,7 @@ set -e
 #           <rpcport>3901</rpcport>
 #           <s3region>garage</s3region>
 #           <s3rootdomain></s3rootdomain>
+#           <s3publicendpoint></s3publicendpoint>
 #           <webenable>0|1</webenable>
 #           <webport>3902</webport>
 #           <webrootdomain></webrootdomain>

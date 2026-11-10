@@ -6,6 +6,8 @@ openmediavault-garage (0.1.0-1) trixie; urgency=medium
   * Manage multiple instances, each with datastores on shared folders,
     buckets with quotas and website hosting, access keys, and key-to-bucket
     permissions.
+  * Optional public endpoint for the S3 API, used when Garage generates
+    the public URL of an object.
   * Optional vendored garage-webui, disabled by default, reachable only
     through the authenticated OMV web interface with one-click sign-in.
 

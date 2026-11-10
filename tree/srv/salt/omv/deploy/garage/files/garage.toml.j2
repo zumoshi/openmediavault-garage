@@ -56,6 +56,9 @@ api_bind_addr = {{ literal('[::]:' ~ model.ports.s3) }}
 {% if instance.s3rootdomain | length > 0 %}
 root_domain = {{ literal(instance.s3rootdomain) }}
 {% endif %}
+{% if instance.s3publicendpoint | default('') | length > 0 %}
+public_endpoint = {{ literal(instance.s3publicendpoint) }}
+{% endif %}
 
 [admin]
 api_bind_addr = {{ literal('127.0.0.1:' ~ model.ports.admin) }}

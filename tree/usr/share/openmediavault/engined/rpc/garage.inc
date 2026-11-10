@@ -155,6 +155,7 @@ class OMVRpcServiceGarage extends ServiceAbstract
 				"rpcport" => $ports["rpcport"],
 				"s3region" => "garage",
 				"s3rootdomain" => "",
+				"s3publicendpoint" => "",
 				"webenable" => false,
 				"webport" => $ports["webport"],
 				"webrootdomain" => "",

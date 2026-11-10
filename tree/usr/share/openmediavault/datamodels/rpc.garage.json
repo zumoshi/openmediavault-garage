@@ -91,6 +91,13 @@
                     ],
                     "pattern": "^(\\.?[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*)?\\z"
                 },
+                "s3publicendpoint": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "pattern": "^($|https?://\\S+)\\z"
+                },
                 "webenable": {
                     "type": "boolean"
                 },

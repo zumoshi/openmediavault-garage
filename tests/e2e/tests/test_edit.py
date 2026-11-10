@@ -164,12 +164,24 @@ def test_region_with_double_quote_rejected(page, cfg, rpc, make_instance):
         is not None, f"setInstance accepted s3region {region}"
 
 
+def test_public_endpoint_requires_http_scheme(page, cfg, rpc, make_instance):
+    name, info = make_instance()
+    params = _form_params(page, cfg, name, info["uuid"])
+    for bad in ("s3.example.com", "ftp://s3.example.com",
+                "https://s3 example.com"):
+        error = _set_instance_error(rpc,
+                                    {**params, "s3publicendpoint": bad})
+        assert error is not None, \
+            f"setInstance accepted s3publicendpoint {bad!r}"
+
+
 def test_trailing_newline_rejected_in_every_patterned_field(page, cfg, rpc,
                                                             make_instance):
     name, info = make_instance()
     params = _form_params(page, cfg, name, info["uuid"])
     valid = {"name": name, "s3region": "garage",
              "s3rootdomain": ".s3.example.com", "webrootdomain": ".web.example.com",
+             "s3publicendpoint": "https://s3.example.com",
              "snapshotinterval": "6h", "blocksize": "1M",
              "blockrambuffermax": "256MiB", "lmdbmapsize": "1T",
              "webuiuser": "admin"}

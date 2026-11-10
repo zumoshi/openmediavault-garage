@@ -114,6 +114,23 @@ def test_split_without_datastore_is_rejected(rpc, shares):
         f"setInstance of an enabled split instance without datastore: {error}"
 
 
+def test_public_endpoint(page, cfg, ssh, rpc, make_instance):
+    name, info = make_instance()
+    toml = instance.read_instance_toml(ssh, name)
+    assert "public_endpoint" not in toml["s3_api"], \
+        "unset public_endpoint was rendered"
+
+    url = "https://s3.example.com"
+    params = rpc.call("Garage", "getInstance", {"uuid": info["uuid"]})
+    rpc.call("Garage", "setInstance", {**params, "s3publicendpoint": url})
+    ui.goto_instances(page, cfg.host)
+    ui.apply_via_ui(page)
+
+    toml = instance.read_instance_toml(ssh, name)
+    assert toml["s3_api"]["public_endpoint"] == url, \
+        f"public_endpoint not rendered: {toml['s3_api']}"
+
+
 def test_custom_ports(page, cfg, ssh, make_instance, s3_setup):
     ports = {"S3 API port": 23900, "RPC port": 23901,
              "Admin API port": 23903}

@@ -23,6 +23,8 @@ unprivileged `garage` user with systemd sandboxing.
 - Always-on listeners: S3 API (all interfaces), internal RPC and admin API
   (loopback)
 - Optional website hosting listener (all interfaces)
+- Optional S3 public endpoint, used when Garage generates the public URL of
+  an object
 - Unused ports are pre-suggested when creating an instance; duplicate ports
   on create are silently resolved to the next free port
 - Optional vendored community web UI (khairul169/garage-webui, MIT), disabled
