@@ -182,7 +182,7 @@ data:
         value: ""
         validators:
           pattern:
-            pattern: '^($|https?://\S+)$'
+            pattern: '^($|https?:\/\/\S+)$'
             errorData: _("A URL with http:// or https://, e.g. https://s3.example.com.")
       - type: divider
         title: _("Advanced")

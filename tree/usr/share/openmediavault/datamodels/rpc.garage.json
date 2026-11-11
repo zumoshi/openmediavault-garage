@@ -96,7 +96,7 @@
                         "string",
                         "null"
                     ],
-                    "pattern": "^($|https?://\\S+)\\z"
+                    "pattern": "^($|https?:\\/\\/\\S+)\\z"
                 },
                 "webenable": {
                     "type": "boolean"

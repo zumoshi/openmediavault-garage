@@ -24,7 +24,7 @@ deb:
 
 depends:
   - openmediavault (>= 8.0)
-  - garage
+  - garage (>= 2.5.0)
   - acl
   - php-cli
   - libc6 (>= 2.34)

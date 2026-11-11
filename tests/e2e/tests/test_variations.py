@@ -120,8 +120,11 @@ def test_public_endpoint(page, cfg, ssh, rpc, make_instance):
     assert "public_endpoint" not in toml["s3_api"], \
         "unset public_endpoint was rendered"
 
-    url = "https://s3.example.com"
     params = rpc.call("Garage", "getInstance", {"uuid": info["uuid"]})
+    assert params["s3publicendpoint"] == "", \
+        f"default public endpoint is not empty: {params['s3publicendpoint']}"
+
+    url = "https://s3.example.com"
     rpc.call("Garage", "setInstance", {**params, "s3publicendpoint": url})
     ui.goto_instances(page, cfg.host)
     ui.apply_via_ui(page)
@@ -129,6 +132,14 @@ def test_public_endpoint(page, cfg, ssh, rpc, make_instance):
     toml = instance.read_instance_toml(ssh, name)
     assert toml["s3_api"]["public_endpoint"] == url, \
         f"public_endpoint not rendered: {toml['s3_api']}"
+
+    rpc.call("Garage", "setInstance", {**params, "s3publicendpoint": ""})
+    ui.goto_instances(page, cfg.host)
+    ui.apply_via_ui(page)
+
+    toml = instance.read_instance_toml(ssh, name)
+    assert "public_endpoint" not in toml["s3_api"], \
+        f"empty public_endpoint was rendered: {toml['s3_api']}"
 
 
 def test_custom_ports(page, cfg, ssh, make_instance, s3_setup):

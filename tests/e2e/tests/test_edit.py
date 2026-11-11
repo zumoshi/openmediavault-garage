@@ -167,6 +167,10 @@ def test_region_with_double_quote_rejected(page, cfg, rpc, make_instance):
 def test_public_endpoint_requires_http_scheme(page, cfg, rpc, make_instance):
     name, info = make_instance()
     params = _form_params(page, cfg, name, info["uuid"])
+    assert params["s3publicendpoint"] == "", \
+        f"form default is not empty: {params['s3publicendpoint']}"
+    assert _set_instance_error(rpc, {**params, "s3publicendpoint": ""}) is None, \
+        "setInstance rejected an empty public endpoint"
     for bad in ("s3.example.com", "ftp://s3.example.com",
                 "https://s3 example.com"):
         error = _set_instance_error(rpc,

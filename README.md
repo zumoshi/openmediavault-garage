@@ -38,7 +38,7 @@ unprivileged `garage` user with systemd sandboxing.
 apt install ./openmediavault-garage_0.1.0-1_amd64.deb
 ```
 
-Requires the `garage` package (see the `garage-debian` repo). Then find the
+Requires garage 2.5.0 or later (see the `garage-debian` repo). Then find the
 plugin under **Services > Garage**.
 
 Workflow per instance:
