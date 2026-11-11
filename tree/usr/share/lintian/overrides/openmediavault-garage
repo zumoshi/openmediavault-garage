@@ -1,5 +1,3 @@
-# Built for omv-extras, not uploaded to Debian, so there is no ITP bug.
-openmediavault-garage: initial-upload-closes-no-bugs [usr/share/doc/openmediavault-garage/changelog.Debian.gz:1]
 # Upstream's garage-webui release binary is shipped byte-identical and pinned
 # by checksum. Stripping it or rebuilding it with hardening flags would break
 # the pin.

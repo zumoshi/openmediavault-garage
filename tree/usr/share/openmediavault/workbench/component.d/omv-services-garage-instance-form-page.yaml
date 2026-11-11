@@ -154,7 +154,7 @@ data:
               arg0:
                 prop: webuienable
       - type: hint
-        text: _("A web UI password is generated automatically. Use 'Open > Web UI' on the Instances page to sign in without entering it. Regenerate it with Garage.renewWebUiPassword if needed.")
+        text: _("A web UI password is generated automatically. Use the 'Web UI' button on the Instances page to sign in without entering it. Regenerate it with Garage.renewWebUiPassword if needed.")
       - type: divider
         title: _("S3")
       - type: textInput

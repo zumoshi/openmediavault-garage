@@ -87,15 +87,16 @@ data:
             method: deleteInstance
             params:
               uuid: "{{ _selected[0].uuid }}"
-      - type: menu
-        icon: mdi:open-in-new
-        tooltip: _("Open")
+      - type: iconButton
+        icon: mdi:monitor-dashboard
+        tooltip: _("Web UI. Requires 'Enable web UI' in the instance settings.")
         enabledConstraints:
           minSelected: 1
           maxSelected: 1
-        actions:
-          - text: _("Web UI")
-            icon: mdi:monitor-dashboard
-            execute:
-              type: url
-              url: "/externalRedirect/%2Fgarage-sso%2F%3Finstance%3D{{ _selected[0].name }}"
+          constraint:
+            - operator: truthy
+              arg0:
+                prop: webuienable
+        execute:
+          type: url
+          url: "/externalRedirect/%2Fgarage-sso%2F%3Finstance%3D{{ _selected[0].name }}"

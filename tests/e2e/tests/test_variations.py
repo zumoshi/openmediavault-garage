@@ -14,6 +14,15 @@ from garage_tester.rpc import NEW_UUID, RpcError
 from garage_tester.ssh import shquote
 
 
+def test_webui_button_disabled_without_webui(page, cfg, make_instance):
+    name, info = make_instance()
+    ui.goto_instances(page, cfg.host)
+    ui.select_row(page, name)
+    button = page.get_by_role(
+        "button", name=re.compile("Requires 'Enable web UI'"))
+    expect(button).to_be_disabled()
+
+
 def test_webui_enabled_and_sso(page, cfg, ssh, rpc, make_instance):
     name, info = make_instance(webui=True)
 

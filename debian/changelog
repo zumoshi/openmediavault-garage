@@ -1,3 +1,11 @@
+openmediavault-garage (0.1.1-1) trixie; urgency=medium
+
+  * Open the web UI from a single button on the Instances page.
+  * Disable that button when the instance has the web UI turned off, with a
+    tooltip that says why.
+
+ -- bor <me@bor691.ir>  Wed, 11 Nov 2026 02:15:00 +0000
+
 openmediavault-garage (0.1.0-1) trixie; urgency=medium
 
   * Initial release. OpenMediaVault 8 plugin for Garage, the S3-compatible

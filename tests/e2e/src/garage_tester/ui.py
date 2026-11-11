@@ -250,9 +250,8 @@ def select_row(page: Page, name: str) -> None:
 
 def open_webui(page: Page, name: str) -> Page:
     select_row(page, name)
-    page.get_by_role("button", name="Open").click()
     with page.context.expect_page(timeout=30000) as popup_info:
-        page.get_by_text("Web UI", exact=True).last.click()
+        page.get_by_role("button", name="Web UI").click()
     popup = popup_info.value
     popup.wait_for_load_state()
     return popup
